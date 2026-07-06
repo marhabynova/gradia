@@ -341,7 +341,12 @@ def add_affiliate_link(request: Request, payload: AffiliateLinkCreate, db: Sessi
     db.add(new_link)
     record_audit_log(db, request, token_payload, "ADD_AFFILIATE_LINK", {"url": payload.url, "category": payload.category})
     db.commit()
-    return {"message": "Affiliate Link added", "id": str(new_link.id)}
+    db.refresh(new_link)
+    
+    # Pencatatan Jejak Audit Keamanan
+    record_audit_log(db, request, token_payload, "CREATE_SAFELINK", {"id": str(new_link.id), "title": new_link.news_title})
+    
+    return {"message": "Safelink berhasil dibuat", "id": str(new_link.id)}
 
 @router.delete("/affiliate/links/{link_id}")
 def delete_affiliate_link(request: Request, link_id: str, db: Session = Depends(get_db), token_payload: dict = Depends(verify_admin_role)):
