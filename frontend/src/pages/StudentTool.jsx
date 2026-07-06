@@ -226,42 +226,70 @@ export default function StudentTool() {
       {status === 'idle' && (
         <div style={{ maxWidth: '650px', margin: '0 auto' }}>
           
-          {/* VIP FOMO Banner */}
+          {/* VIP PRICING SECTION */}
           {!isPremium && (
-            <div className="glass-panel glass-panel-hover" style={{ 
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(234, 179, 8, 0.05))',
-              borderColor: 'rgba(245, 158, 11, 0.3)',
-              marginBottom: '2.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '1.5rem 2rem'
-            }}>
-              <div>
-                <h3 className="text-gradient-gold" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem' }}>
-                  <Zap size={20} color="#f59e0b" /> Lolos Turnitin AI 100%
-                </h3>
-                <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)' }}>
-                  Aktifkan Mesin Ghostwriter & Suntik Jurnal Asli. Pilih Paket Anda:
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button 
-                  className="btn-secondary"
-                  style={{ borderColor: '#f59e0b', color: '#f59e0b' }}
-                  onClick={() => handleUpgradeVIP(25000)}
-                  disabled={isUpgrading}
-                >
-                  {isUpgrading === 25000 ? 'Loading...' : 'Paket 25rb'}
-                </button>
-                <button 
-                  className="btn-primary"
-                  style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', border: 'none', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)' }}
-                  onClick={() => handleUpgradeVIP(80000)}
-                  disabled={isUpgrading}
-                >
-                  {isUpgrading === 80000 ? 'Loading...' : 'Paket 80rb'}
-                </button>
+            <div style={{ marginBottom: '3rem' }}>
+              <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.5rem', color: 'var(--text-main)' }}>
+                Bandingkan & Pilih Paket Anda
+              </h3>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                {/* FREE TIER */}
+                <div className="glass-panel" style={{ padding: '1.5rem', border: '1px solid rgba(255,255,255,0.1)', opacity: 0.8 }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-muted)' }}>Mulai Gratis</h4>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Rp 0</div>
+                  <ul style={{ paddingLeft: '1.25rem', margin: '0 0 1.5rem 0', fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <li>Maks. ukuran file <strong>5MB</strong></li>
+                    <li>Cek Plagiarisme Standar</li>
+                    <li>Antrean unduh <strong>60 detik</strong></li>
+                    <li style={{ textDecoration: 'line-through', opacity: 0.5 }}>Parafrase AI (Ghostwriter)</li>
+                    <li style={{ textDecoration: 'line-through', opacity: 0.5 }}>Perbaikan Format & Daftar Isi</li>
+                  </ul>
+                  <button className="btn-secondary" style={{ width: '100%', opacity: 0.5 }} disabled>Saat Ini Aktif</button>
+                </div>
+
+                {/* 25RB TIER */}
+                <div className="glass-panel glass-panel-hover" style={{ padding: '1.5rem', border: '1px solid rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.05)' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#f59e0b' }}>Paket Standar</h4>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#fff' }}>Rp 25.000</div>
+                  <ul style={{ paddingLeft: '1.25rem', margin: '0 0 1.5rem 0', fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <li>Maks. ukuran file <strong>15MB</strong></li>
+                    <li>Parafrase AI (Turnitin Basic)</li>
+                    <li><strong>Tanpa Antrean Unduh</strong> (Jalur Cepat)</li>
+                    <li style={{ textDecoration: 'line-through', opacity: 0.5, color: 'var(--text-muted)' }}>Suntik Jurnal Asli</li>
+                    <li style={{ textDecoration: 'line-through', opacity: 0.5, color: 'var(--text-muted)' }}>Perbaikan Daftar Pustaka</li>
+                  </ul>
+                  <button 
+                    className="btn-secondary" 
+                    style={{ width: '100%', borderColor: '#f59e0b', color: '#f59e0b' }} 
+                    onClick={() => handleUpgradeVIP(25000)}
+                    disabled={isUpgrading}
+                  >
+                    {isUpgrading === 25000 ? 'Loading...' : 'Pilih 25rb'}
+                  </button>
+                </div>
+
+                {/* 80RB TIER */}
+                <div className="glass-panel glass-panel-hover" style={{ padding: '1.5rem', border: '2px solid #10b981', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05))', position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: '-10px', right: '10px', background: '#10b981', color: '#fff', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '99px', fontWeight: 'bold' }}>PALING GACOR</div>
+                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#10b981' }}>Paket Sultan</h4>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#fff' }}>Rp 80.000</div>
+                  <ul style={{ paddingLeft: '1.25rem', margin: '0 0 1.5rem 0', fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <li>Maks. ukuran file <strong>50MB</strong></li>
+                    <li><strong>Ghostwriter AI Full</strong> (Lolos 100%)</li>
+                    <li><strong>Suntik Sitasi Jurnal Asli</strong></li>
+                    <li><strong>Rapikan Format & Daftar Pustaka</strong></li>
+                    <li>Tanpa Antrean Unduh (Jalur VIP)</li>
+                  </ul>
+                  <button 
+                    className="btn-primary" 
+                    style={{ width: '100%', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', border: 'none', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)' }} 
+                    onClick={() => handleUpgradeVIP(80000)}
+                    disabled={isUpgrading}
+                  >
+                    {isUpgrading === 80000 ? 'Loading...' : 'Pilih 80rb'}
+                  </button>
+                </div>
               </div>
             </div>
           )}
