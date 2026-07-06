@@ -95,7 +95,7 @@ async def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     else:
         # Fallback only if the user hasn't configured .env yet
         logger.warning("smtp_credentials_missing", detail="Printing OTP to console instead")
-        print(f"\n{'='*50}\n📧 [MOCK EMAIL] OTP untuk {payload.email}: {otp}\n{'='*50}\n")
+        print(f"\n{'='*50}\n[MOCK EMAIL] OTP untuk {payload.email}: {otp}\n{'='*50}\n")
     
     return {"message": "User registered successfully. Please verify your email.", "user_id": str(new_user.id)}
 
@@ -190,3 +190,46 @@ async def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db
         }
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google ID Token")
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
+
+@router.post("/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Initiates the forgot password flow by sending an OTP.
+    """
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        return {"message": "Jika email terdaftar, kode pemulihan telah dikirim."}
+        
+    otp = ''.join(random.choices(string.digits, k=6))
+    user.verification_otp = otp
+    db.commit()
+    
+    logger.info("forgot_password_requested", email=payload.email)
+    print(f"\n{'='*50}\n[MOCK EMAIL] OTP Reset Password untuk {payload.email}: {otp}\n{'='*50}\n")
+    
+    return {"message": "Jika email terdaftar, kode pemulihan telah dikirim."}
+
+@router.post("/reset-password")
+async def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Resets the user's password using the OTP.
+    """
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user or user.verification_otp != payload.otp:
+        raise HTTPException(status_code=400, detail="Kode OTP tidak valid atau sudah kedaluwarsa")
+        
+    hashed_pw = AuthHandler.get_password_hash(payload.new_password)
+    user.password_hash = hashed_pw
+    user.verification_otp = None
+    db.commit()
+    
+    logger.info("password_reset_success", email=payload.email)
+    return {"message": "Kata sandi berhasil diatur ulang. Silakan masuk."}
