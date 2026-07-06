@@ -17,6 +17,7 @@ export default function Login() {
   const [institution, setInstitution] = useState('');
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [expectedCaptcha, setExpectedCaptcha] = useState({ q: '', a: 0 });
+  const [acceptTnc, setAcceptTnc] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -61,6 +62,11 @@ export default function Login() {
   const handleRegister = async (e) => {
     e.preventDefault();
     
+    if (!acceptTnc) {
+      setError('Anda harus menyetujui Syarat dan Ketentuan untuk mendaftar.');
+      return;
+    }
+
     if (parseInt(captchaAnswer) !== expectedCaptcha.a) {
       setError('Verifikasi Captcha gagal. Silakan coba lagi.');
       generateCaptcha();
@@ -160,14 +166,10 @@ export default function Login() {
             fontWeight: '900', 
             letterSpacing: '-2px',
             color: '#fff',
-            margin: '0 0 1rem 0'
+            margin: '0'
           }}>
             GRADIA
           </h1>
-          <div style={{ height: '3px', width: '80px', background: 'var(--primary-accent)', marginBottom: '2.5rem' }}></div>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1.25rem', lineHeight: '1.6', margin: 0, fontWeight: '300' }}>
-            Sistem analisis dokumen tingkat lanjut dengan tingkat akurasi tinggi.
-          </p>
         </div>
       </div>
 
@@ -416,7 +418,16 @@ export default function Login() {
                   </div>
                 </div>
                 
-                <button type="submit" disabled={loading} style={{ width: '100%', background: '#fff', color: '#000', border: 'none', padding: '1.1rem', fontSize: '1rem', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '0.5rem', transition: 'opacity 0.2s' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <input type="checkbox" id="tnc" checked={acceptTnc} onChange={(e) => setAcceptTnc(e.target.checked)} 
+                    style={{ marginTop: '0.25rem', accentColor: '#fff', width: '1.1rem', height: '1.1rem', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="tnc" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', lineHeight: '1.4', cursor: 'pointer' }}>
+                    Saya telah membaca, memahami, dan menyetujui seluruh <a href="#" style={{ color: '#fff', textDecoration: 'underline' }}>Syarat & Ketentuan</a> serta Kebijakan Privasi yang berlaku pada infrastruktur ini.
+                  </label>
+                </div>
+
+                <button type="submit" disabled={loading} style={{ width: '100%', background: '#fff', color: '#000', border: 'none', padding: '1.1rem', fontSize: '1rem', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', transition: 'opacity 0.2s' }}>
                   {loading ? 'Memproses...' : 'Daftar Sistem'}
                 </button>
               </form>
