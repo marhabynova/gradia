@@ -11,6 +11,7 @@ export default function StudentTool() {
   const [ticketData, setTicketData] = useState(null);
   const [countdown, setCountdown] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [checkoutData, setCheckoutData] = useState(null);
   const [isPremium, setIsPremium] = useState(false); // Default to FREE for MVP
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [quotaError, setQuotaError] = useState(null); // { message: string }
@@ -122,8 +123,9 @@ export default function StudentTool() {
       const response = await axios.post(`${API_URL}/subscription/checkout`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      // Redirect to Tripay
-      window.location.href = response.data.checkout_url;
+      // Menampilkan modal QRIS
+      setCheckoutData(response.data);
+      setIsUpgrading(false);
     } catch (err) {
       console.error(err);
       alert('Gagal membuat tagihan Tripay. Silakan coba lagi.');
@@ -529,6 +531,48 @@ export default function StudentTool() {
               style={{ width: '100%', padding: '1.25rem', opacity: countdown > 0 ? 0.5 : 1, fontSize: '1.1rem' }}
             >
               <Download size={20} /> Unduh File Skripsi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Manual QRIS Checkout Modal */}
+      {checkoutData && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050, backdropFilter: 'blur(8px)' }}>
+          <div className="glass-panel" style={{ maxWidth: '450px', width: '90%', padding: '2.5rem', animation: 'fade-in 0.3s ease', textAlign: 'center' }}>
+            <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', color: '#f59e0b' }}>Pembayaran VIP</h2>
+            <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+              Pindai QRIS di bawah ini menggunakan aplikasi DANA, Gopay, OVO, atau Mobile Banking Anda.
+            </p>
+            
+            <div style={{ background: '#fff', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'inline-block', marginBottom: '1.5rem' }}>
+              <img src="/qris-statis.jpg" alt="QRIS" style={{ width: '200px', height: '200px', objectFit: 'cover', background: '#e2e8f0', display: 'block' }} 
+                   onError={(e) => { e.target.src = 'https://via.placeholder.com/200x200.png?text=QRIS+Statis+Anda' }} />
+            </div>
+            
+            <div style={{ marginBottom: '2rem', background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Total Tagihan (Transfer Tepat Angka Ini):</div>
+              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-main)', letterSpacing: '1px' }}>
+                Rp {checkoutData.amount.toLocaleString('id-ID')}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#f59e0b', marginTop: '0.5rem' }}>
+                *3 digit terakhir adalah kode unik Anda
+              </div>
+            </div>
+            
+            <a 
+              href={checkoutData.whatsapp_url} 
+              target="_blank" 
+              rel="noreferrer"
+              className="btn-primary" 
+              style={{ display: 'block', width: '100%', padding: '1.25rem', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', textDecoration: 'none', marginBottom: '1rem' }}
+              onClick={() => setCheckoutData(null)}
+            >
+              Sudah Transfer? Konfirmasi via WA
+            </a>
+            
+            <button style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.5rem' }} onClick={() => { setCheckoutData(null); setIsUpgrading(false); }}>
+              Batal & Tutup
             </button>
           </div>
         </div>

@@ -23,6 +23,9 @@ export default function AdminDashboard() {
   const [trends, setTrends] = useState([]);
   const [trendsLoading, setTrendsLoading] = useState(false);
   
+  const [pendingVIPs, setPendingVIPs] = useState([]);
+  const [vipLoading, setVipLoading] = useState(false);
+  
   const [auditLogs, setAuditLogs] = useState([]);
   
   const [adminStats, setAdminStats] = useState({
@@ -95,12 +98,42 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchPendingVIPs = async () => {
+    try {
+      const token = localStorage.getItem('gradia_token');
+      const response = await axios.get(`${API_URL}/admin/subscriptions/pending`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setPendingVIPs(response.data);
+    } catch (err) {
+      console.error('Failed to fetch pending VIPs', err);
+    }
+  };
+
+  const handleApproveVIP = async (invoiceId) => {
+    if (!window.confirm('Pastikan Anda sudah mengecek saldo masuk di e-Wallet. Lanjutkan?')) return;
+    setVipLoading(invoiceId);
+    try {
+      const token = localStorage.getItem('gradia_token');
+      const res = await axios.post(`${API_URL}/admin/subscriptions/approve/${invoiceId}`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      alert(res.data.message);
+      fetchPendingVIPs();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Gagal menyetujui VIP');
+    } finally {
+      setVipLoading(null);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'dashboard') fetchStats();
     if (activeTab === 'monetization') fetchLinks();
     if (activeTab === 'orders') fetchOrders();
     if (activeTab === 'audit') fetchAuditLogs();
     if (activeTab === 'trends') fetchTrends();
+    if (activeTab === 'vip') fetchPendingVIPs();
   }, [activeTab]);
 
   const handleAddLink = async (e) => {
@@ -244,6 +277,9 @@ export default function AdminDashboard() {
           </button>
           <button className={`btn-secondary ${activeTab === 'trends' ? 'btn-primary' : ''}`} style={{ textAlign: 'left', border: 'none', padding: '1rem', justifyContent: 'flex-start', background: activeTab === 'trends' ? '' : 'transparent' }} onClick={() => setActiveTab('trends')}>
             <Activity size={18} style={{ color: activeTab === 'trends' ? '#fff' : '#f43f5e' }}/> Trend Monitor
+          </button>
+          <button className={`btn-secondary ${activeTab === 'vip' ? 'btn-primary' : ''}`} style={{ textAlign: 'left', border: 'none', padding: '1rem', justifyContent: 'flex-start', background: activeTab === 'vip' ? '' : 'transparent' }} onClick={() => setActiveTab('vip')}>
+            <DollarSign size={18} style={{ color: activeTab === 'vip' ? '#fff' : '#10b981' }}/> Validasi VIP Manual
           </button>
           <button className={`btn-secondary ${activeTab === 'audit' ? 'btn-primary' : ''}`} style={{ textAlign: 'left', border: 'none', padding: '1rem', justifyContent: 'flex-start', background: activeTab === 'audit' ? '' : 'transparent' }} onClick={() => setActiveTab('audit')}>
             <Shield size={18} style={{ color: activeTab === 'audit' ? '#fff' : '#10b981' }}/> Audit Trail
@@ -542,6 +578,58 @@ export default function AdminDashboard() {
                           </td>
                         </tr>
                       ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'vip' && (
+            <div className="glass-panel" style={{ padding: '3rem', animation: 'fade-in 0.5s ease' }}>
+              <div style={{ marginBottom: '2.5rem' }}>
+                <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '2rem' }}>Validasi Pembayaran VIP Manual</h2>
+                <p className="text-muted" style={{ margin: 0, fontSize: '1.1rem' }}>Cek mutasi e-Wallet Anda, cocokkan kode unik, lalu setujui (Approve) di sini.</p>
+              </div>
+
+              <div style={{ overflowX: 'auto', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.02)' }}>
+                      <th style={{ padding: '1.25rem', textAlign: 'left', color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>Waktu Order</th>
+                      <th style={{ padding: '1.25rem', textAlign: 'left', color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>Email Mahasiswa</th>
+                      <th style={{ padding: '1.25rem', textAlign: 'left', color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>No. Ref (Kode Unik)</th>
+                      <th style={{ padding: '1.25rem', textAlign: 'left', color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingVIPs.map(inv => (
+                      <tr key={inv.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                        <td style={{ padding: '1.25rem', color: 'var(--text-main)' }}>{new Date(inv.created_at).toLocaleString('id-ID')}</td>
+                        <td style={{ padding: '1.25rem', color: 'var(--primary-accent)' }}>{inv.user_email}</td>
+                        <td style={{ padding: '1.25rem' }}>
+                          <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#f59e0b' }}>Rp {inv.amount.toLocaleString('id-ID')}</span>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{inv.reference}</div>
+                        </td>
+                        <td style={{ padding: '1.25rem' }}>
+                          <button 
+                            className="btn-primary" 
+                            style={{ background: 'linear-gradient(135deg, #10b981, #059669)', padding: '0.75rem 1.5rem' }}
+                            onClick={() => handleApproveVIP(inv.id)}
+                            disabled={vipLoading === inv.id}
+                          >
+                            {vipLoading === inv.id ? 'Memproses...' : 'Approve (Jadikan VIP)'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {pendingVIPs.length === 0 && (
+                      <tr>
+                        <td colSpan="4" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          <DollarSign size={48} color="rgba(255,255,255,0.1)" style={{ margin: '0 auto 1rem auto' }} />
+                          Belum ada tagihan VIP yang tertunda.
+                        </td>
+                      </tr>
                     )}
                   </tbody>
                 </table>

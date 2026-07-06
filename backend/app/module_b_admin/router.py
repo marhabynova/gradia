@@ -10,7 +10,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 from backend.app.shared.infrastructure.database import get_db
 from backend.app.module_b_admin.domain.models import Order, AffiliateLink, Product, AffiliatePlatform, AuditLog
+from backend.app.shared.domain.models import SubscriptionInvoice, User, UserTier
 from backend.app.shared.infrastructure.auth import verify_admin_role
+from datetime import datetime, timedelta
 from fastapi import WebSocket, WebSocketDisconnect
 import asyncio
 
@@ -259,6 +261,51 @@ def get_audit_logs(db: Session = Depends(get_db), token_payload: dict = Depends(
         "details": log.details,
         "created_at": log.created_at.isoformat() if log.created_at else None
     } for log in logs]
+
+# ==========================================
+# SUBSCRIPTION VALIDATION (MANUAL)
+# ==========================================
+
+@router.get("/subscriptions/pending")
+def get_pending_subscriptions(db: Session = Depends(get_db), token_payload: dict = Depends(verify_admin_role)):
+    invoices = db.query(SubscriptionInvoice, User.email).join(User, SubscriptionInvoice.user_id == User.id).filter(SubscriptionInvoice.status == "PENDING_MANUAL").all()
+    return [{
+        "id": str(inv.id),
+        "user_email": email,
+        "amount": inv.amount,
+        "reference": inv.tripay_reference,
+        "created_at": inv.created_at.isoformat() if inv.created_at else None
+    } for inv, email in invoices]
+
+@router.post("/subscriptions/approve/{invoice_id}")
+def approve_subscription(request: Request, invoice_id: str, db: Session = Depends(get_db), token_payload: dict = Depends(verify_admin_role)):
+    try:
+        inv_uuid = uuid.UUID(invoice_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid Invoice ID")
+        
+    invoice = db.query(SubscriptionInvoice).filter(SubscriptionInvoice.id == inv_uuid).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+        
+    if invoice.status == "PAID":
+        raise HTTPException(status_code=400, detail="Invoice already paid")
+        
+    invoice.status = "PAID"
+    
+    # Upgrade User
+    user = db.query(User).filter(User.id == invoice.user_id).first()
+    if user:
+        user.tier = UserTier.PREMIUM
+        if user.premium_until and user.premium_until > datetime.utcnow():
+            user.premium_until += timedelta(days=30)
+        else:
+            user.premium_until = datetime.utcnow() + timedelta(days=30)
+            
+    record_audit_log(db, request, token_payload, "APPROVE_VIP", {"reference": invoice.tripay_reference, "user_id": str(user.id)})
+    db.commit()
+    
+    return {"message": "Berhasil memvalidasi pembayaran dan mengaktifkan VIP!"}
 
 # ==========================================
 # AFFILIATE LINKS (SAFELINK)

@@ -4,7 +4,8 @@ import structlog
 from datetime import datetime, timedelta
 from backend.app.shared.infrastructure.database import get_db
 from backend.app.shared.domain.models import User, UserTier, SubscriptionInvoice
-from backend.app.shared.services.tripay_service import TripayService
+import random
+import os
 
 logger = structlog.get_logger(__name__)
 
@@ -27,77 +28,31 @@ async def create_subscription_checkout(
         raise HTTPException(status_code=404, detail="User not found")
         
     subscription_fee = 50000.0 # Rp 50.000 / month
+    unique_code = random.randint(1, 999)
+    total_amount = subscription_fee + unique_code
     
-    # Hit Tripay API
-    try:
-        tripay_response = TripayService.create_transaction(str(user.id), subscription_fee)
-    except Exception as e:
-        logger.error("tripay_api_error", error=str(e))
-        raise HTTPException(status_code=500, detail="Gagal menghubungi Payment Gateway")
-        
+    reference = f"INV-VIP-{random.randint(1000, 9999)}"
+    
     # Save Invoice to DB
     invoice = SubscriptionInvoice(
         user_id=user.id,
-        tripay_reference=tripay_response["reference"],
-        amount=tripay_response["amount"],
-        status="UNPAID",
-        checkout_url=tripay_response["checkout_url"]
+        tripay_reference=reference, # Repurpose this field for our manual reference
+        amount=total_amount,
+        status="PENDING_MANUAL",
+        checkout_url="" # Not used
     )
     db.add(invoice)
     db.commit()
     
+    admin_wa = os.getenv("ADMIN_WA_NUMBER", "6281234567890")
+    wa_text = f"Halo Admin Gradia, saya mau konfirmasi pembayaran akun VIP sebesar Rp{int(total_amount)} dengan kode referensi {reference}."
+    wa_url = f"https://wa.me/{admin_wa}?text={wa_text.replace(' ', '%20')}"
+    
     return {
-        "message": "Checkout berhasil dibuat",
-        "checkout_url": invoice.checkout_url,
-        "reference": invoice.tripay_reference
+        "message": "Checkout manual berhasil dibuat",
+        "reference": reference,
+        "amount": int(total_amount),
+        "whatsapp_url": wa_url
     }
 
-@router.post("/webhook/tripay")
-async def tripay_webhook(
-    request: Request,
-    x_callback_signature: str = Header(None),
-    db: Session = Depends(get_db)
-):
-    """
-    Webhook endpoint to receive payment notifications from Tripay.
-    """
-    payload_raw = await request.body()
-    payload_str = payload_raw.decode('utf-8')
-    
-    # Verify Signature (Security)
-    if not TripayService.verify_callback_signature(payload_str, x_callback_signature):
-        logger.warning("tripay_webhook_invalid_signature")
-        raise HTTPException(status_code=400, detail="Invalid signature")
-        
-    payload = await request.json()
-    reference = payload.get("reference")
-    status = payload.get("status")
-    
-    if not reference or not status:
-        raise HTTPException(status_code=400, detail="Invalid payload format")
-        
-    invoice = db.query(SubscriptionInvoice).filter(SubscriptionInvoice.tripay_reference == reference).first()
-    if not invoice:
-        logger.warning("tripay_webhook_invoice_not_found", reference=reference)
-        return {"success": False, "message": "Invoice not found"}
-        
-    if status == "PAID":
-        invoice.status = "PAID"
-        
-        # Upgrade User to PREMIUM
-        user = db.query(User).filter(User.id == invoice.user_id).first()
-        if user:
-            user.tier = UserTier.PREMIUM
-            # Add 30 days of premium
-            if user.premium_until and user.premium_until > datetime.utcnow():
-                user.premium_until += timedelta(days=30)
-            else:
-                user.premium_until = datetime.utcnow() + timedelta(days=30)
-                
-            logger.info("user_upgraded_to_premium", user_id=str(user.id), reference=reference)
-            
-    elif status in ["EXPIRED", "FAILED"]:
-        invoice.status = status
-        
-    db.commit()
-    return {"success": True}
+
