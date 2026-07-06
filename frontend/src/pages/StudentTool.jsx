@@ -241,7 +241,7 @@ export default function StudentTool() {
                   <ul style={{ paddingLeft: '1.25rem', margin: '0 0 1.5rem 0', fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <li>Maks. ukuran file <strong>5MB</strong></li>
                     <li>Cek Plagiarisme Standar</li>
-                    <li>Antrean unduh <strong>60 detik</strong></li>
+                    <li>Wajib Antre Unduhan Server</li>
                     <li style={{ textDecoration: 'line-through', opacity: 0.5 }}>Parafrase AI (Ghostwriter)</li>
                     <li style={{ textDecoration: 'line-through', opacity: 0.5 }}>Perbaikan Format & Daftar Isi</li>
                   </ul>
@@ -255,7 +255,7 @@ export default function StudentTool() {
                   <ul style={{ paddingLeft: '1.25rem', margin: '0 0 1.5rem 0', fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <li>Maks. ukuran file <strong>15MB</strong></li>
                     <li>Parafrase AI (Turnitin Basic)</li>
-                    <li><strong>Tanpa Antrean Unduh</strong> (Jalur Cepat)</li>
+                    <li>Wajib Antre Unduhan Server</li>
                     <li style={{ textDecoration: 'line-through', opacity: 0.5, color: 'var(--text-muted)' }}>Suntik Jurnal Asli</li>
                     <li style={{ textDecoration: 'line-through', opacity: 0.5, color: 'var(--text-muted)' }}>Perbaikan Daftar Pustaka</li>
                   </ul>
@@ -279,7 +279,7 @@ export default function StudentTool() {
                     <li><strong>Ghostwriter AI Full</strong> (Lolos 100%)</li>
                     <li><strong>Suntik Sitasi Jurnal Asli</strong></li>
                     <li><strong>Rapikan Format & Daftar Pustaka</strong></li>
-                    <li>Tanpa Antrean Unduh (Jalur VIP)</li>
+                    <li>Wajib Antre Unduhan Server</li>
                   </ul>
                   <button 
                     className="btn-primary" 
