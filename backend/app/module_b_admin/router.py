@@ -297,10 +297,14 @@ def approve_subscription(request: Request, invoice_id: str, db: Session = Depend
     user = db.query(User).filter(User.id == invoice.user_id).first()
     if user:
         user.tier = UserTier.PREMIUM
+        
+        # Calculate duration based on amount (25k vs 80k)
+        days_to_add = 30 if invoice.amount < 50000 else 180
+        
         if user.premium_until and user.premium_until > datetime.utcnow():
-            user.premium_until += timedelta(days=30)
+            user.premium_until += timedelta(days=days_to_add)
         else:
-            user.premium_until = datetime.utcnow() + timedelta(days=30)
+            user.premium_until = datetime.utcnow() + timedelta(days=days_to_add)
             
     record_audit_log(db, request, token_payload, "APPROVE_VIP", {"reference": invoice.tripay_reference, "user_id": str(user.id)})
     db.commit()

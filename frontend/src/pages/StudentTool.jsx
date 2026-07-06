@@ -115,12 +115,12 @@ export default function StudentTool() {
     }
   };
 
-  const handleUpgradeVIP = async () => {
-    setIsUpgrading(true);
+  const handleUpgradeVIP = async (amount) => {
+    setIsUpgrading(amount);
     try {
       const token = localStorage.getItem('gradia_token');
       // For MVP simulation, we call the backend API we just built
-      const response = await axios.post(`${API_URL}/subscription/checkout`, {}, {
+      const response = await axios.post(`${API_URL}/subscription/checkout`, { amount }, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       // Menampilkan modal QRIS
@@ -128,7 +128,7 @@ export default function StudentTool() {
       setIsUpgrading(false);
     } catch (err) {
       console.error(err);
-      alert('Gagal membuat tagihan Tripay. Silakan coba lagi.');
+      alert('Gagal membuat tagihan. Silakan coba lagi.');
       setIsUpgrading(false);
     }
   };
@@ -242,17 +242,27 @@ export default function StudentTool() {
                   <Zap size={20} color="#f59e0b" /> Lolos Turnitin AI 100%
                 </h3>
                 <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)' }}>
-                  Aktifkan Mesin Ghostwriter & Suntik Jurnal Asli. Hanya Rp 50.000/Bulan.
+                  Aktifkan Mesin Ghostwriter & Suntik Jurnal Asli. Pilih Paket Anda:
                 </p>
               </div>
-              <button 
-                className="btn-primary"
-                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', border: 'none', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)' }}
-                onClick={handleUpgradeVIP}
-                disabled={isUpgrading}
-              >
-                {isUpgrading ? 'Loading...' : 'Upgrade VIP'}
-              </button>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button 
+                  className="btn-secondary"
+                  style={{ borderColor: '#f59e0b', color: '#f59e0b' }}
+                  onClick={() => handleUpgradeVIP(25000)}
+                  disabled={isUpgrading}
+                >
+                  {isUpgrading === 25000 ? 'Loading...' : 'Paket 25rb'}
+                </button>
+                <button 
+                  className="btn-primary"
+                  style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', border: 'none', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)' }}
+                  onClick={() => handleUpgradeVIP(80000)}
+                  disabled={isUpgrading}
+                >
+                  {isUpgrading === 80000 ? 'Loading...' : 'Paket 80rb'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -305,9 +315,10 @@ export default function StudentTool() {
               Coba Kembali
             </button>
             {!isPremium && (
-              <button className="btn-primary" onClick={handleUpgradeVIP} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-                Upgrade VIP (Maks 50MB)
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn-secondary" onClick={() => handleUpgradeVIP(25000)} style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>VIP 25rb</button>
+                <button className="btn-primary" onClick={() => handleUpgradeVIP(80000)} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>VIP 80rb</button>
+              </div>
             )}
           </div>
         </div>
@@ -399,7 +410,10 @@ export default function StudentTool() {
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <AlertTriangle size={18} /> <strong>Akses Ditolak:</strong> {quotaError}
                   </span>
-                  <button className="btn-primary" onClick={handleUpgradeVIP} style={{ padding: '0.5rem 1rem', background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>Upgrade VIP</button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn-secondary" onClick={() => handleUpgradeVIP(25000)} style={{ padding: '0.5rem 1rem', borderColor: '#f59e0b', color: '#f59e0b' }}>Paket 25rb</button>
+                    <button className="btn-primary" onClick={() => handleUpgradeVIP(80000)} style={{ padding: '0.5rem 1rem', background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>Paket 80rb</button>
+                  </div>
                 </div>
               )}
               

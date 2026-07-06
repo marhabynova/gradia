@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy.orm import Session
 import structlog
 from datetime import datetime, timedelta
+from pydantic import BaseModel
 from backend.app.shared.infrastructure.database import get_db
 from backend.app.shared.domain.models import User, UserTier, SubscriptionInvoice
 import random
@@ -14,20 +15,24 @@ router = APIRouter(
     tags=["Subscriptions (Tripay)"]
 )
 
+class SubscriptionCheckoutRequest(BaseModel):
+    amount: float
+
 @router.post("/checkout")
 async def create_subscription_checkout(
+    payload: SubscriptionCheckoutRequest,
     # In a real app, user_id comes from JWT auth middleware.
     user_id: str = "123e4567-e89b-12d3-a456-426614174000",
     db: Session = Depends(get_db)
 ):
     """
-    Creates a Tripay Checkout URL for 1-month Premium Subscription
+    Creates a Tripay Checkout URL for Premium Subscription
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    subscription_fee = 50000.0 # Rp 50.000 / month
+    subscription_fee = payload.amount
     unique_code = random.randint(1, 999)
     total_amount = subscription_fee + unique_code
     
