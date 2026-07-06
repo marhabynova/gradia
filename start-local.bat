@@ -13,4 +13,3 @@ echo.
 echo Selesai! Backend berjalan di http://127.0.0.1:8000
 echo Frontend berjalan di http://localhost:5173 (atau port yang tertera di layar CMD baru)
 echo Tutup jendela CMD jika sudah selesai.
-pause

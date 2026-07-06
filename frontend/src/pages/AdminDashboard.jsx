@@ -399,7 +399,7 @@ export default function AdminDashboard() {
                 <h2 className="text-gradient-gold" style={{ margin: 0, fontSize: '2rem' }}>Cross-Marketplace Price Arbitrage</h2>
               </div>
               <p style={{ color: 'var(--text-muted)', marginBottom: '3rem', fontSize: '1.1rem', maxWidth: '800px', lineHeight: '1.6' }}>
-                Cari barang termurah dari berbagai marketplace, biarkan sistem AI mengkalkulasi margin, dan jual kembali (dropship) tanpa pusing memikirkan copywriting deskripsi palsu.
+                Lakukan pencarian produk lintas platform, manfaatkan sistem komputasi margin, dan distribusikan kembali secara efisien tanpa kendala penyusunan deskripsi manual.
               </p>
               
               <form onSubmit={handleArbitrageSearch} style={{ display: 'flex', gap: '1rem', marginBottom: '3rem' }}>
@@ -410,7 +410,7 @@ export default function AdminDashboard() {
                    <input 
                      type="text" 
                      className="input-glass" 
-                     placeholder="Cari barang (Misal: Kipas Angin Portable, iPhone Bekas...)" 
+                     placeholder="Cari produk (Contoh: Peralatan Elektronik, Pakaian...)" 
                      value={searchKeyword}
                      onChange={(e) => setSearchKeyword(e.target.value)}
                      required
@@ -432,32 +432,32 @@ export default function AdminDashboard() {
                     )}
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#fbbf24', color: '#000', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '1rem', boxShadow: '0 4px 10px rgba(251, 191, 36, 0.3)' }}>
-                        <Shield size={14} /> Pemenang Termurah: {arbitrageResult.source_platform}
+                        <Shield size={14} /> Penawaran Terbaik: {arbitrageResult.source_platform}
                       </div>
                       <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.75rem', lineHeight: '1.3' }}>{arbitrageResult.name}</h3>
                       
                       <div style={{ display: 'flex', gap: '3rem', margin: '2rem 0', padding: '1.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
                         <div>
-                          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Modal Beli (Supplier)</p>
+                          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Harga Dasar (Pemasok)</p>
                           <strong style={{ fontSize: '1.5rem', color: '#ef4444', textDecoration: 'line-through' }}>
                             Rp {arbitrageResult.base_price.toLocaleString('id-ID')}
                           </strong>
                         </div>
                         <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
                         <div>
-                          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Harga Jual Baru (+{markupPercentage}%)</p>
+                          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Estimasi Harga Jual (+{markupPercentage}%)</p>
                           <strong style={{ fontSize: '1.75rem', color: '#10b981', textShadow: '0 0 10px rgba(16, 185, 129, 0.3)' }}>
                             Rp {Math.floor(arbitrageResult.base_price * (1 + (markupPercentage/100))).toLocaleString('id-ID')}
                           </strong>
                           <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem', color: '#f59e0b', fontWeight: 'bold' }}>
-                            Profit Bersih: Rp {Math.floor(arbitrageResult.base_price * (markupPercentage/100)).toLocaleString('id-ID')}
+                            Estimasi Margin: Rp {Math.floor(arbitrageResult.base_price * (markupPercentage/100)).toLocaleString('id-ID')}
                           </p>
                         </div>
                       </div>
 
                       <div style={{ marginTop: '1rem', background: 'rgba(0,0,0,0.3)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                          <strong style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1rem' }}>Semi-Auto Markup Controller</strong>
+                          <strong style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1rem' }}>Manajemen Margin Interaktif</strong>
                           <strong style={{ color: '#10b981' }}>{markupPercentage}%</strong>
                         </div>
                         <input 
@@ -469,12 +469,12 @@ export default function AdminDashboard() {
                           style={{ width: '100%', cursor: 'pointer', accentColor: '#10b981' }}
                         />
                         <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                          Geser untuk mengatur margin keuntungan secara real-time.
+                          Sesuaikan persentase margin keuntungan untuk melihat proyeksi harga secara langsung.
                         </p>
                       </div>
 
                       <div style={{ marginTop: '1rem', background: 'rgba(0,0,0,0.3)', padding: '1.5rem', borderRadius: '12px', borderLeft: '4px solid var(--primary-accent)' }}>
-                        <strong style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem' }}>Deskripsi Supplier Asli:</strong>
+                        <strong style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem' }}>Deskripsi Asli Pemasok:</strong>
                         <p style={{ margin: 0, fontSize: '0.9rem', color: '#94a3b8', fontStyle: 'italic', lineHeight: '1.6' }}>"{arbitrageResult.description}"</p>
                       </div>
                     </div>
@@ -506,7 +506,7 @@ export default function AdminDashboard() {
             <div className="glass-panel" style={{ padding: '3rem', animation: 'fade-in 0.5s ease' }}>
               <div style={{ marginBottom: '2.5rem' }}>
                 <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '2rem' }}>Google Trends Indonesia</h2>
-                <p className="text-muted" style={{ margin: 0, fontSize: '1.1rem' }}>Pantau berita viral hari ini untuk ide konten Safelink dan Dropship.</p>
+                <p className="text-muted" style={{ margin: 0, fontSize: '1.1rem' }}>Pantau tren informasi harian untuk mendukung strategi pemasaran digital Anda.</p>
               </div>
               
               {trendsLoading ? (
@@ -535,35 +535,35 @@ export default function AdminDashboard() {
           {activeTab === 'monetization' && (
             <div className="glass-panel" style={{ padding: '3rem', animation: 'fade-in 0.5s ease' }}>
               <div style={{ marginBottom: '2.5rem' }}>
-                <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '2rem' }}>Safelink Generator (Manual)</h2>
-                <p className="text-muted" style={{ margin: 0, fontSize: '1.1rem' }}>Buat Bridge Page berita viral untuk menjaring trafik ke produk Dropship (Hemat Token AI).</p>
+                <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '2rem' }}>Manajemen Tautan Afiliasi (Safelink)</h2>
+                <p className="text-muted" style={{ margin: 0, fontSize: '1.1rem' }}>Hasilkan Halaman Arahan (Landing Page) berbasis tren terkini untuk mengoptimalkan konversi trafik secara efisien.</p>
               </div>
               
               <form onSubmit={handleAddLink} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '3rem', background: 'rgba(0,0,0,0.2)', padding: '2rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>URL Produk Affiliate / Dropship</label>
-                    <input type="url" className="input-glass" placeholder="Misal: https://shope.ee/link-anda-disini" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} required style={{ width: '100%' }} />
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>URL Produk Afiliasi</label>
+                    <input type="url" className="input-glass" placeholder="Misal: https://shope.ee/..." value={newUrl} onChange={(e) => setNewUrl(e.target.value)} required style={{ width: '100%' }} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>URL Sumber Berita (Opsional)</label>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>URL Sumber Referensi (Opsional)</label>
                     <input type="url" className="input-glass" placeholder="Misal: https://news.detik.com/..." value={newsSource} onChange={(e) => setNewsSource(e.target.value)} style={{ width: '100%' }} />
                   </div>
                 </div>
                 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Judul Berita (Clickbait)</label>
-                  <input type="text" className="input-glass" placeholder="Ketik judul berita menarik yang akan dibagikan ke sosmed..." value={newsTitle} onChange={(e) => setNewsTitle(e.target.value)} style={{ width: '100%' }} />
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Judul Halaman Arahan</label>
+                  <input type="text" className="input-glass" placeholder="Masukkan judul artikel yang akan didistribusikan..." value={newsTitle} onChange={(e) => setNewsTitle(e.target.value)} style={{ width: '100%' }} />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Ringkasan Berita (Isi Bridge Page)</label>
-                  <textarea className="input-glass" placeholder="Ketik secara manual 1-2 paragraf isi berita di sini..." value={newsSummary} onChange={(e) => setNewsSummary(e.target.value)} rows="3" style={{ width: '100%', resize: 'vertical' }}></textarea>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Ringkasan Konten (Isi Halaman Arahan)</label>
+                  <textarea className="input-glass" placeholder="Masukkan 1-2 paragraf konten pengantar di sini..." value={newsSummary} onChange={(e) => setNewsSummary(e.target.value)} rows="3" style={{ width: '100%', resize: 'vertical' }}></textarea>
                 </div>
                 
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button type="submit" className="btn-primary flex-center gap-4" disabled={loading} style={{ padding: '0.875rem 2rem' }}>
-                    <Plus size={18} /> Buat Safelink Berita
+                    <Plus size={18} /> Simpan Tautan
                   </button>
                 </div>
               </form>
@@ -586,13 +586,13 @@ export default function AdminDashboard() {
                         <tr key={link.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)', transition: 'background 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                           <td style={{ padding: '1.25rem 1.5rem' }}>
                             {link.news_title && <div style={{ color: '#0ea5e9', fontWeight: 'bold', marginBottom: '0.25rem' }}>{link.news_title}</div>}
-                            <div style={{ color: 'var(--text-main)', fontFamily: 'monospace', fontSize: '0.85rem' }}>🎯 Tautan Affiliate: {link.url}</div>
+                            <div style={{ color: 'var(--text-main)', fontFamily: 'monospace', fontSize: '0.85rem' }}>🎯 Tautan Afiliasi: {link.url}</div>
                           </td>
                           <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right' }}>
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                                {link.news_title && (
-                                 <button className="btn-secondary" onClick={() => navigator.clipboard.writeText(`Wow, cek berita viral ini: ${link.news_title}\n\nBaca selengkapnya: http://localhost:5173/baca/${link.id}`)} style={{ padding: '0.6rem', fontSize: '0.8rem' }} title="Copy Caption Sosmed">
-                                   Copy Caption
+                                 <button className="btn-secondary" onClick={() => navigator.clipboard.writeText(`Temukan informasi selengkapnya mengenai materi ini: ${link.news_title}\n\nBaca di: http://localhost:5173/baca/${link.id}`)} style={{ padding: '0.6rem', fontSize: '0.8rem' }} title="Salin Teks Publikasi">
+                                   Salin Teks Publikasi
                                  </button>
                                )}
                                <button className="btn-secondary" onClick={() => handleDelete(link.id)} style={{ padding: '0.6rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)' }} title="Hapus Tautan">
@@ -612,8 +612,8 @@ export default function AdminDashboard() {
           {activeTab === 'vip' && (
             <div className="glass-panel" style={{ padding: '3rem', animation: 'fade-in 0.5s ease' }}>
               <div style={{ marginBottom: '2.5rem' }}>
-                <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '2rem' }}>Validasi Pembayaran VIP Manual</h2>
-                <p className="text-muted" style={{ margin: 0, fontSize: '1.1rem' }}>Cek mutasi e-Wallet Anda, cocokkan kode unik, lalu setujui (Approve) di sini.</p>
+                <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '2rem' }}>Otorisasi Berlangganan (Manual)</h2>
+                <p className="text-muted" style={{ margin: 0, fontSize: '1.1rem' }}>Verifikasi transaksi masuk pada sistem pembayaran Anda dan setujui status pengguna.</p>
               </div>
 
               <div style={{ overflowX: 'auto', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
@@ -668,7 +668,7 @@ export default function AdminDashboard() {
                 <h2 style={{ margin: 0, fontSize: '2rem' }}>Audit Trail & Keamanan Logs</h2>
               </div>
               <p style={{ color: 'var(--text-muted)', marginBottom: '3rem', fontSize: '1.05rem', maxWidth: '800px', lineHeight: '1.6' }}>
-                Sistem pencatatan mutlak (*Omnipresent*) atas setiap eksekusi di sisi Admin. Dapat melacak IP Address dan otorisasi email untuk keperluan kepatuhan kelas Enterprise.
+                Sistem pencatatan aktivitas terpusat untuk setiap eksekusi operasional. Melacak Alamat IP dan otorisasi pengguna untuk mendukung kepatuhan standar Enterprise.
               </p>
               
               <div style={{ overflowX: 'auto', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
