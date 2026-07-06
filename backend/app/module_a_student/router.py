@@ -309,3 +309,36 @@ async def suggest_citation(
             "improved_text": f"{text_snippet} (Sistem Gradia, 2026)",
             "status": "SUCCESS"
         }
+
+from pydantic import BaseModel
+class ChatRequest(BaseModel):
+    message: str
+
+@router.post("/{version_id}/chat")
+async def chat_with_document(
+    version_id: str,
+    payload: ChatRequest,
+    user_id: str = "123e4567-e89b-12d3-a456-426614174000",
+    db: Session = Depends(get_db)
+):
+    """
+    Fitur Tanya Jawab Dokumen dengan AI (Khusus Enterprise).
+    """
+    from backend.app.shared.domain.models import User, UserTier
+    from backend.app.shared.infrastructure.gemini_client import GeminiCostController
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.tier != UserTier.PREMIUM:
+        raise HTTPException(status_code=403, detail="Fitur AI Chat Reviewer khusus untuk pengguna Paket Enterprise. Silakan Upgrade Paket Anda.")
+        
+    prompt = f"Anda adalah AI Academic Reviewer. Mahasiswa bertanya tentang dokumennya: '{payload.message}'. Berikan jawaban akademis yang profesional, konstruktif, dan cerdas. Gunakan bahasa Indonesia formal yang baik."
+    
+    try:
+        reply = GeminiCostController.generate_content(prompt, requires_advanced_reasoning=False, max_tokens=1500)
+        return {
+            "reply": reply,
+            "status": "SUCCESS"
+        }
+    except Exception as e:
+        logger.error("ai_chat_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Gagal menghubungi layanan AI Chat.")
