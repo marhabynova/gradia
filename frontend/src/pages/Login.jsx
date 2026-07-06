@@ -13,10 +13,21 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   
+  const [fullName, setFullName] = useState('');
+  const [institution, setInstitution] = useState('');
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const [expectedCaptcha, setExpectedCaptcha] = useState({ q: '', a: 0 });
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
+
+  const generateCaptcha = () => {
+    const num1 = Math.floor(Math.random() * 10) + 1;
+    const num2 = Math.floor(Math.random() * 10) + 1;
+    setExpectedCaptcha({ q: `${num1} + ${num2} = ?`, a: num1 + num2 });
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -49,6 +60,14 @@ export default function Login() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    
+    if (parseInt(captchaAnswer) !== expectedCaptcha.a) {
+      setError('Verifikasi Captcha gagal. Silakan coba lagi.');
+      generateCaptcha();
+      setCaptchaAnswer('');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setMessage('');
@@ -57,12 +76,16 @@ export default function Login() {
       await axios.post(`${API_URL}/auth/register`, { 
         email, 
         password,
+        full_name: fullName,
+        institution,
         role: email.includes('admin') ? 'ADMIN' : 'STUDENT'
       });
       setMessage('Registrasi sistem berhasil. Kode otentikasi telah dikirim ke alamat email.');
       setView('verify');
     } catch (err) {
       setError(err.response?.data?.detail || 'Pendaftaran gagal mematuhi ketentuan sistem.');
+      generateCaptcha();
+      setCaptchaAnswer('');
     } finally {
       setLoading(false);
     }
@@ -323,7 +346,7 @@ export default function Login() {
 
               <p style={{ textAlign: 'center', marginTop: '3.5rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>
                 Tidak memiliki akses?{' '}
-                <button onClick={() => setView('register')} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: '600', padding: 0, textDecoration: 'underline' }}>
+                <button type="button" onClick={() => { setView('register'); generateCaptcha(); }} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: '600', padding: 0, textDecoration: 'underline' }}>
                   Registrasi
                 </button>
               </p>
@@ -334,6 +357,26 @@ export default function Login() {
           {view === 'register' && (
             <div style={{ animation: 'fade-in 0.3s ease' }}>
               <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600' }}>
+                    Nama Lengkap
+                  </label>
+                  <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required 
+                    style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.2)', padding: '0.75rem 0', color: '#fff', fontSize: '1.05rem', outline: 'none', transition: 'border-color 0.2s', borderRadius: 0 }}
+                    onFocus={(e) => e.target.style.borderBottom = '1px solid var(--primary-accent)'}
+                    onBlur={(e) => e.target.style.borderBottom = '1px solid rgba(255,255,255,0.2)'}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600' }}>
+                    Institusi / Universitas
+                  </label>
+                  <input type="text" value={institution} onChange={(e) => setInstitution(e.target.value)} required 
+                    style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.2)', padding: '0.75rem 0', color: '#fff', fontSize: '1.05rem', outline: 'none', transition: 'border-color 0.2s', borderRadius: 0 }}
+                    onFocus={(e) => e.target.style.borderBottom = '1px solid var(--primary-accent)'}
+                    onBlur={(e) => e.target.style.borderBottom = '1px solid rgba(255,255,255,0.2)'}
+                  />
+                </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600' }}>
                     Alamat Email Instansi
@@ -355,6 +398,24 @@ export default function Login() {
                   />
                 </div>
                 
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <label style={{ display: 'block', marginBottom: '1rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600' }}>
+                    Verifikasi Keamanan (Math Captcha)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ flex: '1', fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '3px' }}>
+                      {expectedCaptcha.q}
+                    </div>
+                    <div style={{ flex: '2' }}>
+                      <input type="number" value={captchaAnswer} onChange={(e) => setCaptchaAnswer(e.target.value)} required placeholder="Hasil..."
+                        style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', padding: '0.75rem', color: '#fff', fontSize: '1.05rem', outline: 'none', transition: 'border-color 0.2s', textAlign: 'center' }}
+                        onFocus={(e) => e.target.style.borderColor = 'var(--primary-accent)'}
+                        onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.2)'}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
                 <button type="submit" disabled={loading} style={{ width: '100%', background: '#fff', color: '#000', border: 'none', padding: '1.1rem', fontSize: '1rem', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '0.5rem', transition: 'opacity 0.2s' }}>
                   {loading ? 'Memproses...' : 'Daftar Sistem'}
                 </button>
@@ -362,7 +423,7 @@ export default function Login() {
 
               <p style={{ textAlign: 'center', marginTop: '3.5rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>
                 Telah terdaftar?{' '}
-                <button onClick={() => setView('login')} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: '600', padding: 0, textDecoration: 'underline' }}>
+                <button type="button" onClick={() => setView('login')} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: '600', padding: 0, textDecoration: 'underline' }}>
                   Buka Portal
                 </button>
               </p>

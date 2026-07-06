@@ -32,6 +32,10 @@ class User(Base, TimestampMixin):
     password_hash = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.STUDENT, nullable=False)
     
+    # Profile Fields
+    full_name = Column(String(255), nullable=True)
+    institution = Column(String(255), nullable=True)
+    
     # Premium Fields
     tier = Column(Enum(UserTier), default=UserTier.FREE, nullable=False)
     premium_until = Column(DateTime, nullable=True)

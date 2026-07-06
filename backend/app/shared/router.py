@@ -26,6 +26,8 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     role: UserRole = UserRole.STUDENT
+    full_name: str | None = None
+    institution: str | None = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -53,6 +55,8 @@ async def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         email=payload.email,
         password_hash=hashed_pw,
         role=payload.role,
+        full_name=payload.full_name,
+        institution=payload.institution,
         is_verified=False,
         verification_otp=otp
     )
