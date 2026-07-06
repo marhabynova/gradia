@@ -167,7 +167,6 @@ async def find_arbitrage(request: Request, payload: ArbitrageRequest, db: Sessio
         top_product = products[0]
         base_price_usd = top_product.get("price", 10.0)
         base = int(base_price_usd * 15000) # Convert USD to IDR for reality
-        markup = int(base * 1.3) # 30% margin
         
         # Mencatat pengawasan pencarian arbitrage (Omnipresent Audit)
         record_audit_log(db, request, token_payload, "FIND_ARBITRAGE", {"keyword": payload.keyword, "found_product": top_product.get("title")})
@@ -178,12 +177,11 @@ async def find_arbitrage(request: Request, payload: ArbitrageRequest, db: Sessio
                 "name": top_product.get("title"),
                 "source_platform": "Global Supplier (via API)",
                 "base_price": base,
-                "markup_price": markup,
                 "description": top_product.get("description"),
                 "image_url": top_product.get("thumbnail"),
                 "competitors": [
-                    {"platform": "Shopee Lokal", "price": int(markup * 1.1)},
-                    {"platform": "Tokopedia", "price": int(markup * 1.15)}
+                    {"platform": "Shopee Lokal", "price": int(base * 1.45)},
+                    {"platform": "Tokopedia", "price": int(base * 1.50)}
                 ]
             }
         }

@@ -23,6 +23,8 @@ export default function AdminDashboard() {
   const [trends, setTrends] = useState([]);
   const [trendsLoading, setTrendsLoading] = useState(false);
   
+  const [markupPercentage, setMarkupPercentage] = useState(30);
+  
   const [pendingVIPs, setPendingVIPs] = useState([]);
   const [vipLoading, setVipLoading] = useState(false);
   
@@ -190,6 +192,7 @@ export default function AdminDashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setArbitrageResult(response.data.data);
+      setMarkupPercentage(30); // Reset slider ke default 30%
     } catch (err) {
       alert('Pencarian Arbitrage gagal. ' + (err.response?.data?.detail || ''));
     } finally {
@@ -442,11 +445,32 @@ export default function AdminDashboard() {
                         </div>
                         <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
                         <div>
-                          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Harga Jual Baru (+30%)</p>
+                          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Harga Jual Baru (+{markupPercentage}%)</p>
                           <strong style={{ fontSize: '1.75rem', color: '#10b981', textShadow: '0 0 10px rgba(16, 185, 129, 0.3)' }}>
-                            Rp {arbitrageResult.markup_price.toLocaleString('id-ID')}
+                            Rp {Math.floor(arbitrageResult.base_price * (1 + (markupPercentage/100))).toLocaleString('id-ID')}
                           </strong>
+                          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem', color: '#f59e0b', fontWeight: 'bold' }}>
+                            Profit Bersih: Rp {Math.floor(arbitrageResult.base_price * (markupPercentage/100)).toLocaleString('id-ID')}
+                          </p>
                         </div>
+                      </div>
+
+                      <div style={{ marginTop: '1rem', background: 'rgba(0,0,0,0.3)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                          <strong style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1rem' }}>Semi-Auto Markup Controller</strong>
+                          <strong style={{ color: '#10b981' }}>{markupPercentage}%</strong>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="5" 
+                          max="150" 
+                          value={markupPercentage} 
+                          onChange={(e) => setMarkupPercentage(e.target.value)}
+                          style={{ width: '100%', cursor: 'pointer', accentColor: '#10b981' }}
+                        />
+                        <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          Geser untuk mengatur margin keuntungan secara real-time.
+                        </p>
                       </div>
 
                       <div style={{ marginTop: '1rem', background: 'rgba(0,0,0,0.3)', padding: '1.5rem', borderRadius: '12px', borderLeft: '4px solid var(--primary-accent)' }}>
