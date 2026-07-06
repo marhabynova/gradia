@@ -1,0 +1,64 @@
+# Render Blueprint (Infrastructure as Code)
+# Menyulap 4 server skalabel dalam 1 klik
+# Documentasi: https://render.com/docs/blueprint-spec
+
+services:
+  # 1. PostgreSQL Database (Support pgvector by default on Render Postgres 14/15/16)
+  - type: psql
+    name: gradia-db
+    plan: free # Change to standard/pro for production
+    databaseName: gradia_prod_db
+    user: gradia_admin
+    postgresMajorVersion: 15
+
+  # 2. Redis Cache
+  - type: redis
+    name: gradia-redis
+    plan: free # Change to starter for production
+    ipAllowList: [] # Accessible internally only
+
+  # 3. Backend (FastAPI Web Service)
+  - type: web
+    name: gradia-backend
+    env: python
+    buildCommand: "cd backend && pip install -r requirements.txt && alembic upgrade head"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    plan: free # Change to starter for production
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gradia-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: gradia-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DOMAIN_NAME
+        value: "gradia.works"
+      - key: GEMINI_API_KEY
+        sync: false # Admin will input this in Render Dashboard later
+      - key: SMTP_EMAIL
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+
+  # 4. Frontend (React Static Site)
+  - type: static
+    name: gradia-frontend-static
+    buildCommand: "cd frontend && npm install && npm run build"
+    staticPublishPath: "frontend/dist"
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: gradia-backend
+          property: url
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
