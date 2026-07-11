@@ -65,11 +65,16 @@ def ensure_user_subscription_schema():
         conn.execute(text("ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS chat_count INTEGER NOT NULL DEFAULT 0"))
         conn.execute(text("ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS last_chat_reset_date TIMESTAMP NOT NULL DEFAULT now()"))
 
+def ensure_audit_log_schema():
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE IF EXISTS biz_audit_logs ADD COLUMN IF NOT EXISTS endpoint VARCHAR(255)"))
+
 @app.on_event("startup")
 async def startup_event():
     Base.metadata.create_all(bind=engine)
     ensure_dropship_order_schema()
     ensure_user_subscription_schema()
+    ensure_audit_log_schema()
     logger.info("gradia_api_starting_up", alembic_managed=True)
 
 @app.get("/health")
@@ -103,8 +108,37 @@ def redirect_affiliate(link_id: str, db: Session = Depends(get_db)):
     # Increment tracking clicks
     link.clicks += 1
     db.commit()
-    
+
     return RedirectResponse(url=link.url, status_code=307)
+
+@app.get("/api/v1/bridge/{link_id}")
+def get_bridge_page_data(link_id: str, request: Request, db: Session = Depends(get_db)):
+    """
+    Public (unauthenticated) content-fetch for the Bridge Page (/baca/:id) -
+    the "read the news, then see the offer" safelink landing page. Records a
+    page-view Click for analytics, distinct from the click-through redirect above.
+    """
+    from backend.app.module_b_admin.domain.models import Click
+
+    try:
+        l_uuid = uuid.UUID(link_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid Link ID")
+
+    link = db.query(AffiliateLink).filter(AffiliateLink.id == l_uuid).first()
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    link.clicks += 1
+    db.add(Click(link_id=link.id, ip_address=request.client.host if request.client else None))
+    db.commit()
+
+    return {
+        "news_title": link.news_title,
+        "news_summary": link.news_summary,
+        "news_source_url": link.news_source_url,
+        "url": link.url
+    }
 
 # =======================================================
 # INCLUDE ROUTERS

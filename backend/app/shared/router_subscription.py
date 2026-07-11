@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter(
     prefix="/api/v1/subscription",
-    tags=["Subscriptions (Tripay)"]
+    tags=["Subscriptions (Manual QRIS)"]
 )
 
 class SubscriptionCheckoutRequest(BaseModel):

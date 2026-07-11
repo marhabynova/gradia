@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Gradia Dropship Scraper",
+  "version": "1.0",
+  "description": "Ekstensi resmi Gradia ERP untuk scraping produk (satuan di halaman produk, atau massal di halaman listing/pencarian) dari Shopee dan Tokopedia.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "*://*.shopee.co.id/*",
+    "*://*.tokopedia.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Buka Pengaturan Gradia Scraper"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.shopee.co.id/*",
+        "*://*.tokopedia.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
