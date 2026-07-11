@@ -10,7 +10,15 @@ from backend.app.shared.domain.models import UserRole
 logger = structlog.get_logger(__name__)
 
 # Development defaults (must be overridden in production)
-SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-gradia-key-do-not-use-in-prod")
+_JWT_SECRET_ENV = os.getenv("JWT_SECRET")
+if not _JWT_SECRET_ENV:
+    logger.warning(
+        "jwt_secret_not_set_using_dev_fallback",
+        detail="JWT_SECRET env var is not set - falling back to a well-known dev secret. "
+               "Anyone who reads this source code can forge valid tokens, including admin tokens. "
+               "Set JWT_SECRET in your environment before exposing this service to the internet."
+    )
+SECRET_KEY = _JWT_SECRET_ENV or "super-secret-gradia-key-do-not-use-in-prod"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 1 day
 
@@ -60,3 +68,11 @@ def verify_admin_role(credentials: HTTPAuthorizationCredentials = Depends(securi
             detail="Insufficient permissions. Admin role required."
         )
     return payload
+
+
+def verify_authenticated_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Dependency to validate any authenticated user and return the JWT payload.
+    """
+    token = credentials.credentials
+    return AuthHandler.decode_token(token)

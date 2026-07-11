@@ -1,3 +1,4 @@
+import os
 import structlog
 from sqlalchemy.orm import Session
 from fastapi import UploadFile
@@ -13,7 +14,7 @@ class DocumentService:
     """
     Coordinates the document upload, parsing, and storage logic.
     """
-    
+
     @staticmethod
     async def process_upload(file: UploadFile, user_id: str, db: Session, background_tasks: BackgroundTasks) -> dict:
         """
@@ -21,13 +22,10 @@ class DocumentService:
         Returns the document ID and total chunks created.
         """
         file_bytes = await file.read()
-        
+
         # 1. Parse into chunks
         chunks_text = DocumentParser.parse_docx(file_bytes)
-        
-        # 1.5 Upload to Google Cloud Storage
-        gcs_url = StorageService.upload_file_to_gcs(file_bytes, file.filename)
-        
+
         # 2. Database Transactions
         # Create Document Master
         new_doc = Document(
@@ -37,15 +35,24 @@ class DocumentService:
         )
         db.add(new_doc)
         db.flush() # flush to get the new_doc.id
-        
-        # Create Initial Version
+
+        # Create Initial Version (file_url filled in after upload, once we have a safe storage key)
         new_version = Version(
             document_id=new_doc.id,
             version_number=1,
-            file_url=gcs_url
+            file_url=""
         )
         db.add(new_version)
         db.flush() # flush to get new_version.id
+
+        # 1.5 Upload to Google Cloud Storage - use the version UUID as the blob name
+        # (not the raw filename) to prevent path traversal / blob-key injection and
+        # filename collisions between users. Original filename is preserved in Document.title.
+        _, ext = os.path.splitext(file.filename or "")
+        safe_ext = ext if len(ext) <= 10 and all(c.isalnum() or c == '.' for c in ext) else ""
+        storage_key = f"documents/{user_id}/{new_version.id}{safe_ext}"
+        gcs_url = StorageService.upload_file_to_gcs(file_bytes, storage_key)
+        new_version.file_url = gcs_url
         
         # Create Chunks
         db_chunks = []

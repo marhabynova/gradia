@@ -296,8 +296,9 @@ def approve_subscription(request: Request, invoice_id: str, db: Session = Depend
     if user:
         user.tier = UserTier.PREMIUM
         
-        # Calculate duration based on amount (25k vs 80k)
-        days_to_add = 30 if invoice.amount < 50000 else 180
+        # Duration is based on the closest valid tier the paid amount matches
+        # (checkout adds a 1-999 unique code on top of the base 25000/80000 price).
+        days_to_add = 30 if invoice.amount < 50999 else 180
         
         if user.premium_until and user.premium_until > datetime.utcnow():
             user.premium_until += timedelta(days=days_to_add)

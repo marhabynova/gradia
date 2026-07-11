@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 import structlog
@@ -11,6 +11,7 @@ from google.auth.transport import requests as google_requests
 
 from backend.app.shared.infrastructure.database import get_db
 from backend.app.shared.infrastructure.auth import AuthHandler, verify_authenticated_user
+from backend.app.shared.infrastructure.limiter import limiter
 from backend.app.shared.domain.models import User, UserRole
 import random
 import string
@@ -37,7 +38,8 @@ class VerifyRequest(BaseModel):
     otp: str
 
 @router.post("/register")
-async def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, payload: RegisterRequest, db: Session = Depends(get_db)):
     """
     Registers a new user (Student or Admin).
     """
@@ -103,7 +105,8 @@ async def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     return {"message": "User registered successfully. Please verify your email.", "user_id": str(new_user.id)}
 
 @router.post("/verify-otp")
-async def verify_otp(payload: VerifyRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+async def verify_otp(request: Request, payload: VerifyRequest, db: Session = Depends(get_db)):
     """
     Verifies the email using OTP.
     """
@@ -124,7 +127,8 @@ async def verify_otp(payload: VerifyRequest, db: Session = Depends(get_db)):
     return {"message": "Email verified successfully"}
 
 @router.post("/login")
-async def login(payload: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
     """
     Authenticates a user and returns a JWT token.
     """
@@ -155,7 +159,8 @@ class GoogleLoginRequest(BaseModel):
     id_token: str
 
 @router.post("/google/login")
-async def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+async def google_login(request: Request, payload: GoogleLoginRequest, db: Session = Depends(get_db)):
     """
     Verifies Google ID Token and authenticates the user.
     """
@@ -205,7 +210,8 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 @router.post("/forgot-password")
-async def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """
     Initiates the forgot password flow by sending an OTP.
     """
@@ -223,7 +229,8 @@ async def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(
     return {"message": "Jika email terdaftar, kode pemulihan telah dikirim."}
 
 @router.post("/reset-password")
-async def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+async def reset_password(request: Request, payload: ResetPasswordRequest, db: Session = Depends(get_db)):
     """
     Resets the user's password using the OTP.
     """
