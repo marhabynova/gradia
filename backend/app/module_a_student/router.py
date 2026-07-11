@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks, Request
-from backend.app.main import limiter
+from backend.app.shared.infrastructure.limiter import limiter
 from sqlalchemy.orm import Session
 import structlog
+import uuid
 from backend.app.shared.infrastructure.database import get_db
 from backend.app.module_a_student.services.document_service import DocumentService
+from backend.app.shared.infrastructure.auth import verify_authenticated_user
 
 logger = structlog.get_logger(__name__)
 
@@ -12,13 +14,18 @@ router = APIRouter(
     tags=["Student Tool - Documents"]
 )
 
+
+def _current_user_id(token_payload: dict) -> uuid.UUID:
+    try:
+        return uuid.UUID(token_payload["sub"])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+
 @router.post("/upload")
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    # In a real app, user_id comes from JWT auth middleware.
-    # We mock it here for the MVP baseline.
-    user_id: str = "123e4567-e89b-12d3-a456-426614174000",
+    token_payload: dict = Depends(verify_authenticated_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -32,9 +39,11 @@ async def upload_document(
         logger.warning("invalid_file_format_rejected", filename=file.filename)
         raise HTTPException(status_code=400, detail="Ekstensi file harus .docx atau .pdf.")
         
-    from backend.app.shared.domain.models import User, UserTier
+    from backend.app.shared.domain.models import User
+    from backend.app.shared.services.subscription_service import SubscriptionService
+    user_id = _current_user_id(token_payload)
     user = db.query(User).filter(User.id == user_id).first()
-    max_size = 50 * 1024 * 1024 if user and user.tier == UserTier.PREMIUM else 5 * 1024 * 1024
+    max_size = 50 * 1024 * 1024 if user and SubscriptionService.is_premium_active(user, db) else 5 * 1024 * 1024
     
     # Check file size (Read and seek back)
     file_bytes = await file.read()
@@ -65,31 +74,39 @@ class DownloadIntentRequest(BaseModel):
 async def request_download_ticket(
     version_id: str,
     payload: DownloadIntentRequest,
-    user_id: str = "123e4567-e89b-12d3-a456-426614174000",
+    token_payload: dict = Depends(verify_authenticated_user),
     db: Session = Depends(get_db)
 ):
     from backend.app.module_a_student.domain.models import DownloadTicket, Version
     from backend.app.module_b_admin.services.affiliate_service import AffiliateService
-    from backend.app.shared.domain.models import User, UserTier
+    from backend.app.shared.domain.models import User
+    from backend.app.shared.services.subscription_service import SubscriptionService
     from datetime import datetime, timedelta
-    
+
     # Verify version exists
     version = db.query(Version).filter(Version.id == version_id).first()
     if not version:
         raise HTTPException(status_code=404, detail="Version not found")
-        
+
     mode = payload.mode.upper()
     if mode not in ["FAST", "NORMAL"]:
         raise HTTPException(status_code=400, detail="Invalid mode")
-        
+
+    user_id = _current_user_id(token_payload)
     user = db.query(User).filter(User.id == user_id).first()
-    is_premium = user and user.tier == UserTier.PREMIUM
+    is_premium = user and SubscriptionService.is_premium_active(user, db)
     
     now = datetime.utcnow()
     
     if mode == "FAST" or is_premium:
         ready_at = now # Instantly ready
-        monetization_url = None if is_premium else AffiliateService.get_random_download_link(db)
+        if is_premium:
+            monetization_url = None
+        else:
+            from backend.app.module_b_admin.services.system_config_service import SystemConfigService
+            safelink = SystemConfigService.get_student_safelink_url(db)
+            monetization_url = safelink if safelink else AffiliateService.get_random_download_link(db)
+            
         # If premium, force FAST mode
         mode = "FAST"
     else: # NORMAL
@@ -155,18 +172,20 @@ async def paraphrase_chunk(
     request: Request,
     version_id: str,
     chunk_id: str,
-    user_id: str = "123e4567-e89b-12d3-a456-426614174000",
+    token_payload: dict = Depends(verify_authenticated_user),
     db: Session = Depends(get_db)
 ):
     from backend.app.module_a_student.domain.models import Chunk, Version
     from backend.app.module_a_student.services.ai_pipeline import AIPipeline
-    from backend.app.shared.domain.models import User, UserTier
+    from backend.app.shared.domain.models import User
+    from backend.app.shared.services.subscription_service import SubscriptionService
     from datetime import datetime
-    
+
     chunk = db.query(Chunk).filter(Chunk.id == chunk_id, Chunk.version_id == version_id).first()
     if not chunk:
         raise HTTPException(status_code=404, detail="Chunk not found")
-        
+
+    user_id = _current_user_id(token_payload)
     user = db.query(User).filter(User.id == user_id).first()
     if user:
         # Reset quota if it's a new day
@@ -174,8 +193,8 @@ async def paraphrase_chunk(
             user.paraphrase_count = 0
             user.last_reset_date = datetime.utcnow()
             db.commit()
-            
-        limit = 500 if user.tier == UserTier.PREMIUM else 5 # 5 paragraf gratis sehari
+
+        limit = 500 if SubscriptionService.is_premium_active(user, db) else 5 # 5 paragraf gratis sehari
         if user.paraphrase_count >= limit:
             raise HTTPException(status_code=402, detail=f"Kuota harian habis ({limit}/{limit}). Silakan Upgrade VIP atau kembali lagi BESOK!")
         
@@ -200,7 +219,7 @@ async def paraphrase_chunk(
 @router.post("/{version_id}/fix-bibliography")
 async def fix_bibliography(
     version_id: str,
-    user_id: str = "123e4567-e89b-12d3-a456-426614174000",
+    token_payload: dict = Depends(verify_authenticated_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -208,13 +227,15 @@ async def fix_bibliography(
     Mengekstraksi bagian daftar pustaka dari dokumen dan melakukan standardisasi format menggunakan kecerdasan buatan.
     """
     from backend.app.module_a_student.domain.models import Chunk, Version
-    from backend.app.shared.domain.models import User, UserTier
+    from backend.app.shared.domain.models import User
+    from backend.app.shared.services.subscription_service import SubscriptionService
     from backend.app.shared.infrastructure.gemini_client import GeminiCostController
-    
+
+    user_id = _current_user_id(token_payload)
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or user.tier != UserTier.PREMIUM:
+    if not user or not SubscriptionService.is_premium_active(user, db):
         raise HTTPException(status_code=403, detail="Fitur ini khusus pengguna VIP. Silakan Upgrade Paket Anda.")
-        
+
     # Cari chunk yang kemungkinan berisi daftar pustaka
     chunks = db.query(Chunk).filter(Chunk.version_id == version_id).all()
     target_chunk = None
@@ -244,21 +265,85 @@ async def fix_bibliography(
         logger.error("fix_bibliography_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Gagal menghubungi layanan AI.")
 
+@router.post("/{version_id}/enhance/{chunk_id}")
+@limiter.limit("5/minute")
+async def enhance_text(
+    request: Request,
+    version_id: str,
+    chunk_id: str,
+    token_payload: dict = Depends(verify_authenticated_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Academic Writing Assistant (Premium).
+    Memperbaiki tata bahasa, kosakata, dan struktur kalimat tanpa mengubah makna atau sitasi.
+    """
+    import json
+    from backend.app.module_a_student.domain.models import Chunk, TextEnhancementEdit
+    from backend.app.module_a_student.services.writing_assistant_service import WritingAssistantService
+    from backend.app.shared.domain.models import User
+    from backend.app.shared.services.subscription_service import SubscriptionService
+    from datetime import datetime
+
+    user_id = _current_user_id(token_payload)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not SubscriptionService.is_premium_active(user, db):
+        raise HTTPException(status_code=403, detail="Fitur ini khusus pengguna VIP. Silakan Upgrade Paket Anda.")
+
+    chunk = db.query(Chunk).filter(Chunk.id == chunk_id, Chunk.version_id == version_id).first()
+    if not chunk:
+        raise HTTPException(status_code=404, detail="Chunk not found")
+
+    if user.last_enhancement_reset_date.date() != datetime.utcnow().date():
+        user.enhancement_count = 0
+        user.last_enhancement_reset_date = datetime.utcnow()
+        db.commit()
+
+    limit = 30
+    if user.enhancement_count >= limit:
+        raise HTTPException(status_code=402, detail=f"Kuota harian habis ({limit}/{limit}). Silakan kembali lagi BESOK!")
+
+    try:
+        result = WritingAssistantService.enhance_text(chunk.chunk_text)
+
+        edit = TextEnhancementEdit(
+            chunk_id=chunk.id,
+            original_text=chunk.chunk_text,
+            enhanced_text=result["enhanced_text"],
+            changes_summary=json.dumps(result["changes"], ensure_ascii=False)
+        )
+        db.add(edit)
+
+        user.enhancement_count += 1
+        db.commit()
+
+        return {
+            "original": chunk.chunk_text,
+            "enhanced_text": result["enhanced_text"],
+            "changes": result["changes"],
+            "quota_used": user.enhancement_count
+        }
+    except Exception as e:
+        logger.error("enhance_text_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Gagal menghubungi layanan AI.")
+
 @router.post("/{version_id}/sync-toc")
 async def sync_table_of_contents(
     version_id: str,
-    user_id: str = "123e4567-e89b-12d3-a456-426614174000",
+    token_payload: dict = Depends(verify_authenticated_user),
     db: Session = Depends(get_db)
 ):
     """
     Sinkronisasi Daftar Isi Otomatis.
     Mengintegrasikan pembaruan nomor halaman dan struktur dokumen secara terpusat.
     """
-    from backend.app.shared.domain.models import User, UserTier
+    from backend.app.shared.domain.models import User
+    from backend.app.shared.services.subscription_service import SubscriptionService
+    user_id = _current_user_id(token_payload)
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or user.tier != UserTier.PREMIUM:
+    if not user or not SubscriptionService.is_premium_active(user, db):
         raise HTTPException(status_code=403, detail="Fitur ini khusus pengguna VIP. Silakan Upgrade Paket Anda.")
-        
+
     return {
         "message": "Instruksi sinkronisasi daftar isi berhasil disisipkan ke metadata dokumen. Jangan lupa klik 'Update Field' saat membuka Word nanti.",
         "status": "SUCCESS"
@@ -268,20 +353,22 @@ async def sync_table_of_contents(
 async def suggest_citation(
     version_id: str,
     text_snippet: str,
-    user_id: str = "123e4567-e89b-12d3-a456-426614174000",
+    token_payload: dict = Depends(verify_authenticated_user),
     db: Session = Depends(get_db)
 ):
     """
     Sistem Rekomendasi Sitasi Berbasis AI (Advanced Reasoning).
     Menghasilkan rekomendasi kutipan akademis yang relevan dan menyusun ulang struktur kalimat untuk menghindari indikasi plagiarisme.
     """
-    from backend.app.shared.domain.models import User, UserTier
+    from backend.app.shared.domain.models import User
+    from backend.app.shared.services.subscription_service import SubscriptionService
     from backend.app.shared.infrastructure.gemini_client import GeminiCostController
-    
+
+    user_id = _current_user_id(token_payload)
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or user.tier != UserTier.PREMIUM:
+    if not user or not SubscriptionService.is_premium_active(user, db):
         raise HTTPException(status_code=403, detail="Fitur ini khusus pengguna VIP. Silakan Upgrade Paket Anda.")
-        
+
     prompt = f"Berdasarkan kalimat berikut yang terindikasi plagiat, berikan satu format saran sitasi in-text (misal: Author, Tahun) yang paling logis untuk kalimat ini, serta tulis ulang kalimatnya agar lolos uji plagiasi.\nKalimat:\n{text_snippet}\n\nBalas dengan format JSON murni tanpa markdown: {{\"citation\": \"(Author, Year)\", \"improved_text\": \"kalimat baru\"}}"
     
     try:
@@ -315,28 +402,60 @@ class ChatRequest(BaseModel):
     message: str
 
 @router.post("/{version_id}/chat")
+@limiter.limit("10/minute")
 async def chat_with_document(
+    request: Request,
     version_id: str,
     payload: ChatRequest,
-    user_id: str = "123e4567-e89b-12d3-a456-426614174000",
+    token_payload: dict = Depends(verify_authenticated_user),
     db: Session = Depends(get_db)
 ):
     """
     Fitur Tanya Jawab Dokumen dengan AI (Khusus Enterprise).
     """
-    from backend.app.shared.domain.models import User, UserTier
+    from backend.app.shared.domain.models import User
+    from backend.app.shared.services.subscription_service import SubscriptionService
     from backend.app.shared.infrastructure.gemini_client import GeminiCostController
-    
+    from backend.app.module_a_student.domain.models import Chunk, Version
+    from datetime import datetime
+
+    user_id = _current_user_id(token_payload)
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or user.tier != UserTier.PREMIUM:
+    if not user or not SubscriptionService.is_premium_active(user, db):
         raise HTTPException(status_code=403, detail="Fitur AI Chat Reviewer khusus untuk pengguna Paket Enterprise. Silakan Upgrade Paket Anda.")
-        
-    prompt = f"Anda adalah AI Academic Reviewer. Mahasiswa bertanya tentang dokumennya: '{payload.message}'. Berikan jawaban akademis yang profesional, konstruktif, dan cerdas. Gunakan bahasa Indonesia formal yang baik."
-    
+
+    if user.last_chat_reset_date.date() != datetime.utcnow().date():
+        user.chat_count = 0
+        user.last_chat_reset_date = datetime.utcnow()
+        db.commit()
+
+    chat_limit = 40
+    if user.chat_count >= chat_limit:
+        raise HTTPException(status_code=402, detail=f"Kuota chat harian habis ({chat_limit}/{chat_limit}). Silakan kembali lagi BESOK!")
+
     try:
-        reply = GeminiCostController.generate_content(prompt, requires_advanced_reasoning=False, max_tokens=1500)
+        # Generate embedding for user query
+        query_embedding = GeminiCostController.embed_content(payload.message)
+        
+        # Retrieve top 3 relevant chunks via pgvector cosine distance
+        relevant_chunks = db.query(Chunk)\
+            .filter(Chunk.version_id == version_id)\
+            .order_by(Chunk.embedding.cosine_distance(query_embedding))\
+            .limit(3)\
+            .all()
+            
+        context_text = "\n\n".join([f"Kutipan:\n{c.chunk_text}" for c in relevant_chunks])
+        
+        prompt = f"Anda adalah AI Academic Reviewer. Mahasiswa bertanya: '{payload.message}'.\n\nBerdasarkan isi dokumen berikut:\n{context_text}\n\nBerikan jawaban akademis yang profesional, konstruktif, dan cerdas berdasarkan konteks dokumen. Gunakan bahasa Indonesia formal yang baik."
+        
+        reply = GeminiCostController.generate_content(prompt, requires_advanced_reasoning=True, max_tokens=1500)
+
+        user.chat_count += 1
+        db.commit()
+
         return {
             "reply": reply,
+            "quota_used": user.chat_count,
             "status": "SUCCESS"
         }
     except Exception as e:

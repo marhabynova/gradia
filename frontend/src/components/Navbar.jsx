@@ -27,27 +27,30 @@ const Navbar = () => {
       zIndex: 100
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <div style={{ 
-          background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-          borderRadius: '8px',
-          width: '32px',
-          height: '32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          fontWeight: 'bold'
-        }}>G</div>
-        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.025em' }}>
-          Gradia <span style={{ color: 'var(--primary-accent)' }}>AI</span>
+        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, letterSpacing: '-1px', color: '#fff' }}>
+          GRADIA
         </h2>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-          Status: <span style={{ color: '#10b981', fontWeight: 'bold' }}>Online</span>
+        <button
+          onClick={() => navigate('/panduan-integritas')}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: location.pathname === '/panduan-integritas' ? '#10b981' : 'var(--text-muted)',
+            fontSize: '0.85rem',
+            letterSpacing: '0.5px',
+            cursor: 'pointer',
+            padding: 0
+          }}
+        >
+          Panduan Integritas Akademik
+        </button>
+        <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+          Infrastruktur: <span style={{ color: '#10b981', fontWeight: 'bold' }}>Aktif</span>
         </div>
-        <button 
+        <button
           onClick={handleLogout}
           style={{
             background: 'transparent',

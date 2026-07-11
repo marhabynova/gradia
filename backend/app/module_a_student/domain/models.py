@@ -29,8 +29,8 @@ class Chunk(Base, TimestampMixin):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     version_id = Column(UUID(as_uuid=True), ForeignKey("versions.id", ondelete="CASCADE"), nullable=False, index=True)
     chunk_text = Column(Text, nullable=False)
-    # 384 dimensions typical for lightweight embedding models like BGE-M3/Gemma
-    embedding = Column(Vector(384))
+    # 768 dimensions for Gemini text-embedding-004
+    embedding = Column(Vector(768))
 
     __table_args__ = (
         Index(
@@ -57,6 +57,15 @@ class ParaphraseEdit(Base, TimestampMixin):
     chunk_id = Column(UUID(as_uuid=True), ForeignKey("chunks.id", ondelete="CASCADE"), nullable=False)
     original_text = Column(Text, nullable=False)
     suggested_text = Column(Text, nullable=False)
+
+class TextEnhancementEdit(Base, TimestampMixin):
+    __tablename__ = "text_enhancement_edits"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    chunk_id = Column(UUID(as_uuid=True), ForeignKey("chunks.id", ondelete="CASCADE"), nullable=False)
+    original_text = Column(Text, nullable=False)
+    enhanced_text = Column(Text, nullable=False)
+    changes_summary = Column(Text)  # JSON-encoded list of change descriptions
 
 class FormatIssue(Base, TimestampMixin):
     __tablename__ = "format_issues"

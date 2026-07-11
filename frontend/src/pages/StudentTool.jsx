@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { UploadCloud, CheckCircle, AlertTriangle, FileText, Download, Timer, Zap, MessageSquare, Send, List, Bookmark } from 'lucide-react';
+import { UploadCloud, CheckCircle, AlertTriangle, FileText, Download, Timer, Zap, MessageSquare, Send, List, Bookmark, Sparkles } from 'lucide-react';
+import { logError } from '../utils/logger';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -11,8 +12,10 @@ export default function StudentTool() {
   const [ticketData, setTicketData] = useState(null);
   const [countdown, setCountdown] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [studentConfig, setStudentConfig] = useState(null);
   const [checkoutData, setCheckoutData] = useState(null);
-  const [isPremium, setIsPremium] = useState(false); // Default to FREE for MVP
+  const [isPremium, setIsPremium] = useState(false);
+  const [premiumUntil, setPremiumUntil] = useState(null);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [quotaError, setQuotaError] = useState(null); // { message: string }
   const [uploadError, setUploadError] = useState(null);
@@ -22,11 +25,49 @@ export default function StudentTool() {
   const [isFixingBib, setIsFixingBib] = useState(false);
   const [isSyncingToc, setIsSyncingToc] = useState(false);
   const [isSuggestingCitation, setIsSuggestingCitation] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [enhanceResult, setEnhanceResult] = useState(null);
+  const [enhanceQuotaError, setEnhanceQuotaError] = useState(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [activeTab, setActiveTab] = useState('plagiarism');
   const [chatMessages, setChatMessages] = useState([{ role: 'ai', content: 'Halo! Saya AI Academic Reviewer. Ada pertanyaan mengenai dokumen yang baru Anda unggah?' }]);
   const [chatInput, setChatInput] = useState('');
   const [isChatting, setIsChatting] = useState(false);
+
+  useEffect(() => {
+    // Fetch global student config
+    const fetchConfig = async () => {
+      try {
+        const token = localStorage.getItem('gradia_token');
+        const res = await axios.get(`${API_URL}/admin/student-config`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setStudentConfig(res.data.data);
+      } catch (err) {
+        console.error('Failed to load student config', err);
+      }
+    };
+    fetchConfig();
+
+    // Fetch real subscription status - source of truth, not a client-side guess
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('gradia_token');
+        const res = await axios.get(`${API_URL}/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setIsPremium(res.data.is_premium_active);
+        setPremiumUntil(res.data.premium_until);
+      } catch (err) {
+        console.error('Failed to load user profile', err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const daysUntilExpiry = premiumUntil
+    ? Math.ceil((new Date(premiumUntil) - new Date()) / (1000 * 60 * 60 * 24))
+    : null;
 
   const handleFixBibliography = async () => {
     setIsFixingBib(true);
@@ -71,6 +112,29 @@ export default function StudentTool() {
       alert("Gagal memberikan saran sitasi.");
     } finally {
       setIsSuggestingCitation(false);
+    }
+  };
+
+  const handleEnhanceText = async (chunkId) => {
+    setIsEnhancing(true);
+    setEnhanceQuotaError(null);
+    try {
+      const token = localStorage.getItem('gradia_token');
+      const response = await axios.post(`${API_URL}/student/documents/${versionId}/enhance/${chunkId}`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setEnhanceResult(response.data);
+    } catch (err) {
+      logError('ENHANCE_TEXT_FAILED', err);
+      if (err.response?.status === 402) {
+        setEnhanceQuotaError(err.response.data.detail);
+      } else if (err.response?.status === 403) {
+        setEnhanceQuotaError(err.response.data.detail);
+      } else {
+        alert('Gagal menyempurnakan tulisan.');
+      }
+    } finally {
+      setIsEnhancing(false);
     }
   };
 
@@ -132,7 +196,7 @@ export default function StudentTool() {
       });
       setParaphrasedText(response.data.paraphrased);
     } catch (err) {
-      console.error(err);
+      logError('PARAPHRASE_FAILED', err);
       if (err.response?.status === 402) {
         setQuotaError(err.response.data.detail); // The limit message
       } else {
@@ -155,7 +219,7 @@ export default function StudentTool() {
       setCheckoutData(response.data);
       setIsUpgrading(false);
     } catch (err) {
-      console.error(err);
+      logError('VIP_UPGRADE_CHECKOUT_FAILED', err);
       alert('Gagal membuat tagihan. Silakan coba lagi.');
       setIsUpgrading(false);
     }
@@ -182,7 +246,7 @@ export default function StudentTool() {
       setVersionId(response.data.data.version_id);
       setStatus('done');
     } catch (err) {
-      console.error(err);
+      logError('DOCUMENT_UPLOAD_FAILED', err);
       setStatus('error');
       setUploadError(err.response?.data?.detail || 'Terjadi kesalahan saat mengunggah dokumen.');
     }
@@ -209,7 +273,7 @@ export default function StudentTool() {
         setCountdown(data.wait_seconds);
       }
     } catch (err) {
-      console.error(err);
+      logError('FETCH_DOWNLOAD_INTENT_FAILED', err);
       alert('Gagal mengambil tiket unduhan.');
     }
   };
@@ -251,6 +315,40 @@ export default function StudentTool() {
         </p>
       </div>
 
+      {/* PREMIUM RENEWAL REMINDER */}
+      {isPremium && daysUntilExpiry !== null && daysUntilExpiry <= 5 && (
+        <div style={{
+          background: 'rgba(245, 158, 11, 0.1)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          color: '#f59e0b', padding: '1rem 1.5rem', borderRadius: '12px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: '3rem', flexWrap: 'wrap', gap: '1rem'
+        }}>
+          <span>
+            {daysUntilExpiry > 0
+              ? `Langganan VIP Anda berakhir dalam ${daysUntilExpiry} hari. Perpanjang sekarang agar fitur premium tidak terputus.`
+              : 'Langganan VIP Anda telah berakhir. Perpanjang untuk mengaktifkan kembali fitur premium.'}
+          </span>
+          <button className="btn-secondary" style={{ borderColor: '#f59e0b', color: '#f59e0b' }} onClick={() => handleUpgradeVIP(25000)}>
+            Perpanjang Sekarang
+          </button>
+        </div>
+      )}
+
+      {/* INJECTED ADS BANNER (CONTROLLED BY ADMIN) */}
+      {studentConfig && studentConfig.student_ads_enabled && (
+        <div style={{
+          background: 'linear-gradient(45deg, #fbbf24, #f59e0b)',
+          color: '#000', padding: '1rem', borderRadius: '12px',
+          textAlign: 'center', fontWeight: 'bold', marginBottom: '3rem',
+          boxShadow: '0 10px 30px rgba(251, 191, 36, 0.2)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          animation: 'fade-in 0.5s ease'
+        }}>
+          [ ADVERTISEMENT ] Diskon 50% untuk langganan Premium! Klik di sini.
+        </div>
+      )}
+
       {status === 'idle' && (
         <div style={{ maxWidth: '650px', margin: '0 auto' }}>
           
@@ -258,13 +356,13 @@ export default function StudentTool() {
           {!isPremium && (
             <div style={{ marginBottom: '3rem' }}>
               <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.5rem', color: 'var(--text-main)' }}>
-                Bandingkan & Pilih Paket Anda
+                Hierarki Lisensi Ekosistem
               </h3>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                 {/* FREE TIER */}
                 <div className="glass-panel" style={{ padding: '1.5rem', border: '1px solid rgba(255,255,255,0.1)', opacity: 0.8 }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-muted)' }}>Paket Dasar (Gratis)</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-muted)' }}>Lisensi Dasar (Gratis)</h4>
                   <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Rp 0</div>
                   <ul style={{ paddingLeft: '1.25rem', margin: '0 0 1.5rem 0', fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <li>Maks. ukuran file <strong>5MB</strong></li>
@@ -278,7 +376,7 @@ export default function StudentTool() {
 
                 {/* 25RB TIER */}
                 <div className="glass-panel glass-panel-hover" style={{ padding: '1.5rem', border: '1px solid rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.05)' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#f59e0b' }}>Paket Profesional</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#f59e0b' }}>Lisensi Profesional</h4>
                   <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#fff' }}>Rp 25.000</div>
                   <ul style={{ paddingLeft: '1.25rem', margin: '0 0 1.5rem 0', fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <li>Maks. ukuran file <strong>15MB</strong></li>
@@ -293,14 +391,14 @@ export default function StudentTool() {
                     onClick={() => handleUpgradeVIP(25000)}
                     disabled={isUpgrading}
                   >
-                    {isUpgrading === 25000 ? 'Memproses...' : 'Pilih Profesional'}
+                    {isUpgrading === 25000 ? 'Memproses...' : 'Otorisasi Profesional'}
                   </button>
                 </div>
 
                 {/* 80RB TIER */}
                 <div className="glass-panel glass-panel-hover" style={{ padding: '1.5rem', border: '2px solid #10b981', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05))', position: 'relative' }}>
                   <div style={{ position: 'absolute', top: '-10px', right: '10px', background: '#10b981', color: '#fff', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '99px', fontWeight: 'bold' }}>REKOMENDASI</div>
-                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#10b981' }}>Paket Enterprise</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#10b981' }}>Lisensi Enterprise</h4>
                   <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#fff' }}>Rp 80.000</div>
                   <ul style={{ paddingLeft: '1.25rem', margin: '0 0 1.5rem 0', fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <li>Maks. ukuran file <strong>50MB</strong></li>
@@ -315,7 +413,7 @@ export default function StudentTool() {
                     onClick={() => handleUpgradeVIP(80000)}
                     disabled={isUpgrading}
                   >
-                    {isUpgrading === 80000 ? 'Memproses...' : 'Pilih Enterprise'}
+                    {isUpgrading === 80000 ? 'Memproses...' : 'Otorisasi Enterprise'}
                   </button>
                 </div>
               </div>
@@ -355,7 +453,7 @@ export default function StudentTool() {
             </label>
             
             <button className="btn-primary" onClick={handleUpload} disabled={!file} style={{ width: '100%', marginTop: '1.5rem', padding: '1.25rem', fontSize: '1.1rem' }}>
-              <Zap size={20} /> Mulai Analisis Pintar
+              <Zap size={20} /> Inisiasi Pemrosesan Algoritma
             </button>
           </div>
         </div>
@@ -441,7 +539,15 @@ export default function StudentTool() {
                 </button>
               </li>
               <li>
-                <button 
+                <button
+                  onClick={() => setActiveTab('enhance')}
+                  style={{ width: '100%', textAlign: 'left', padding: '1rem', background: activeTab === 'enhance' ? 'rgba(236, 72, 153, 0.15)' : 'transparent', border: 'none', borderRadius: 'var(--radius-md)', color: activeTab === 'enhance' ? '#ec4899' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontWeight: activeTab === 'enhance' ? 'bold' : 'normal', transition: 'all 0.2s' }}
+                >
+                  <Sparkles size={18} /> Penyempurnaan Tulisan <span style={{ background: '#ec4899', color: '#fff', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '99px', marginLeft: 'auto' }}>PRO</span>
+                </button>
+              </li>
+              <li>
+                <button
                   onClick={() => setActiveTab('chat')}
                   style={{ width: '100%', textAlign: 'left', padding: '1rem', background: activeTab === 'chat' ? 'rgba(245, 158, 11, 0.15)' : 'transparent', border: 'none', borderRadius: 'var(--radius-md)', color: activeTab === 'chat' ? '#f59e0b' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontWeight: activeTab === 'chat' ? 'bold' : 'normal', transition: 'all 0.2s' }}
                 >
@@ -582,6 +688,77 @@ export default function StudentTool() {
               </div>
             )}
 
+            {activeTab === 'enhance' && (
+              <div style={{ animation: 'fade-in 0.3s ease' }}>
+                <div style={{ marginBottom: '2.5rem' }}>
+                  <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.85rem', color: '#ec4899', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Sparkles size={28} /> Academic Writing Assistant
+                  </h2>
+                  <p className="text-muted" style={{ margin: 0, fontSize: '1.1rem' }}>
+                    Perbaiki tata bahasa, kosakata, dan alur kalimat tanpa mengubah makna atau sitasi Anda.
+                  </p>
+                </div>
+
+                {!isPremium ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-lg)', padding: '3rem', textAlign: 'center', border: '1px dashed rgba(236, 72, 153, 0.3)' }}>
+                    <div style={{ background: 'rgba(236, 72, 153, 0.1)', padding: '1.5rem', borderRadius: '50%', marginBottom: '1.5rem' }}>
+                      <Sparkles size={48} color="#ec4899" />
+                    </div>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.75rem', color: '#fff' }}>Fitur Eksklusif Terbatas</h3>
+                    <p className="text-muted" style={{ marginBottom: '2.5rem', maxWidth: '500px', fontSize: '1.1rem', lineHeight: '1.6' }}>
+                      Dapatkan penyempurnaan tata bahasa, kosakata, dan struktur kalimat secara otomatis dari AI Writing Assistant kami.
+                    </p>
+                    <button className="btn-primary" onClick={() => handleUpgradeVIP(25000)} style={{ background: 'linear-gradient(135deg, #ec4899, #db2777)', padding: '1.25rem 2.5rem', fontSize: '1.15rem' }}>
+                      Otorisasi Lisensi Profesional (Rp 25.000)
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ background: 'rgba(236, 72, 153, 0.03)', border: '1px solid rgba(236, 72, 153, 0.15)', padding: '2rem', borderRadius: 'var(--radius-lg)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                      <Sparkles size={20} color="#ec4899" />
+                      <strong style={{ color: '#ec4899', fontSize: '1.1rem' }}>Penyempurnaan Tulisan (AI)</strong>
+                    </div>
+
+                    {enhanceResult && (
+                      <>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1.5rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', borderLeft: '4px solid var(--text-muted)' }}>
+                          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Sebelum</p>
+                          <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', lineHeight: '1.7', fontSize: '1.05rem' }}>{enhanceResult.original}</p>
+                        </div>
+                        <div style={{ background: 'rgba(236, 72, 153, 0.06)', padding: '1.5rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', borderLeft: '4px solid #ec4899' }}>
+                          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: '#ec4899', textTransform: 'uppercase', letterSpacing: '1px' }}>Sesudah</p>
+                          <p style={{ margin: 0, color: '#fff', lineHeight: '1.7', fontSize: '1.05rem' }}>{enhanceResult.enhanced_text}</p>
+                        </div>
+                        {enhanceResult.changes?.length > 0 && (
+                          <div style={{ marginBottom: '1rem' }}>
+                            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: 'var(--text-muted)' }}>Ringkasan Perbaikan:</p>
+                            <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'rgba(255,255,255,0.8)', fontSize: '0.95rem', lineHeight: '1.8' }}>
+                              {enhanceResult.changes.map((c, i) => <li key={c}>{c}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {enhanceQuotaError && (
+                      <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '1.5rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.05rem' }}>
+                          <AlertTriangle size={20} /> {enhanceQuotaError}
+                        </span>
+                      </div>
+                    )}
+
+                    {!enhanceResult && (
+                      <button className="btn-primary" style={{ width: '100%', background: 'linear-gradient(135deg, #ec4899, #db2777)', padding: '1.25rem', fontSize: '1.1rem' }} onClick={() => handleEnhanceText('mock-chunk')} disabled={isEnhancing}>
+                        <Sparkles size={20} />
+                        {isEnhancing ? 'Menyempurnakan Tulisan...' : 'Sempurnakan Teks'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === 'chat' && (
               <div style={{ animation: 'fade-in 0.3s ease', display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <div style={{ marginBottom: '1.5rem' }}>
@@ -596,12 +773,12 @@ export default function StudentTool() {
                     <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '1.5rem', borderRadius: '50%', marginBottom: '1.5rem' }}>
                       <MessageSquare size={48} color="#f59e0b" />
                     </div>
-                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.75rem', color: '#fff' }}>Fitur Eksklusif Enterprise</h3>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.75rem', color: '#fff' }}>Fitur Eksklusif Terbatas</h3>
                     <p className="text-muted" style={{ marginBottom: '2.5rem', maxWidth: '500px', fontSize: '1.1rem', lineHeight: '1.6' }}>
                       Dapatkan kemampuan tingkat lanjut untuk berdiskusi langsung, merangkum bab, dan meminta saran penulisan spesifik kepada AI Reviewer kami.
                     </p>
                     <button className="btn-primary" onClick={() => handleUpgradeVIP(80000)} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', padding: '1.25rem 2.5rem', fontSize: '1.15rem' }}>
-                      Buka Akses Enterprise (Rp 80.000)
+                      Otorisasi Lisensi Enterprise (Rp 80.000)
                     </button>
                   </div>
                 ) : (
@@ -670,8 +847,8 @@ export default function StudentTool() {
                 onClick={() => handleDownloadIntent('FAST')}
               >
                 <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Jalur Prioritas (Akses Instan)</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: 'normal' }}>Kunjungi penawaran mitra kami sekali, dan dokumen langsung siap.</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Akses Dedicated (Prioritas)</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: 'normal' }}>Dukung pemeliharaan server dengan meninjau kemitraan strategis kami.</div>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.2)', padding: '1rem', borderRadius: '50%' }}>
                   <Zap size={28} />
@@ -684,8 +861,8 @@ export default function StudentTool() {
                 onClick={() => handleDownloadIntent('NORMAL')}
               >
                 <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Jalur Reguler (Gratis)</div>
-                  <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', fontWeight: 'normal' }}>Menggunakan sistem antrean standar selama 60 detik.</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Akses Publik (Reguler)</div>
+                  <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', fontWeight: 'normal' }}>Tunduk pada latensi antrean publik (60 detik).</div>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '50%', color: 'var(--text-muted)' }}>
                   <Timer size={28} />

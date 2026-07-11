@@ -10,7 +10,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 from backend.app.shared.infrastructure.database import get_db
-from backend.app.shared.infrastructure.auth import AuthHandler
+from backend.app.shared.infrastructure.auth import AuthHandler, verify_authenticated_user
 from backend.app.shared.domain.models import User, UserRole
 import random
 import string
@@ -25,7 +25,6 @@ router = APIRouter(
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
-    role: UserRole = UserRole.STUDENT
     full_name: str | None = None
     institution: str | None = None
 
@@ -54,7 +53,7 @@ async def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     new_user = User(
         email=payload.email,
         password_hash=hashed_pw,
-        role=payload.role,
+        role=UserRole.STUDENT,
         full_name=payload.full_name,
         institution=payload.institution,
         is_verified=False,
@@ -63,7 +62,7 @@ async def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     
     db.add(new_user)
     db.commit()
-    logger.info("user_registered", email=payload.email, role=payload.role)
+    logger.info("user_registered", email=payload.email, role="STUDENT")
     
     # ---------------------------------------------------------
     # PRODUCTION EMAIL SYSTEM (aiosmtplib)
@@ -148,7 +147,8 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     
     return {
         "access_token": token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "role": user.role.value
     }
 
 class GoogleLoginRequest(BaseModel):
@@ -190,7 +190,8 @@ async def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db
         
         return {
             "access_token": token,
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "role": user.role.value
         }
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google ID Token")
@@ -237,3 +238,26 @@ async def reset_password(payload: ResetPasswordRequest, db: Session = Depends(ge
     
     logger.info("password_reset_success", email=payload.email)
     return {"message": "Kata sandi berhasil diatur ulang. Silakan masuk."}
+
+
+@router.get("/me")
+async def get_my_profile(token_payload: dict = Depends(verify_authenticated_user), db: Session = Depends(get_db)):
+    """
+    Returns the current user's real subscription status, so the frontend
+    can reflect actual entitlements instead of relying on client-side state.
+    """
+    from backend.app.shared.services.subscription_service import SubscriptionService
+
+    user = db.query(User).filter(User.id == token_payload["sub"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    is_premium = SubscriptionService.is_premium_active(user, db)
+
+    return {
+        "email": user.email,
+        "full_name": user.full_name,
+        "tier": user.tier.value if is_premium else "FREE",
+        "is_premium_active": is_premium,
+        "premium_until": user.premium_until.isoformat() if user.premium_until else None
+    }

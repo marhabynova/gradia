@@ -43,6 +43,10 @@ class User(Base, TimestampMixin):
     # Quota / Token Cost Control
     paraphrase_count = Column(Integer, default=0, nullable=False)
     last_reset_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    enhancement_count = Column(Integer, default=0, nullable=False)
+    last_enhancement_reset_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    chat_count = Column(Integer, default=0, nullable=False)
+    last_chat_reset_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     # Security & Verification
     is_verified = Column(Boolean, default=False, nullable=False)

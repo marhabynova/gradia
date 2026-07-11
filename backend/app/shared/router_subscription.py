@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from backend.app.shared.infrastructure.database import get_db
 from backend.app.shared.domain.models import User, UserTier, SubscriptionInvoice
+from backend.app.shared.infrastructure.auth import verify_authenticated_user
 import random
 import os
 
@@ -21,13 +22,13 @@ class SubscriptionCheckoutRequest(BaseModel):
 @router.post("/checkout")
 async def create_subscription_checkout(
     payload: SubscriptionCheckoutRequest,
-    # In a real app, user_id comes from JWT auth middleware.
-    user_id: str = "123e4567-e89b-12d3-a456-426614174000",
+    token_payload: dict = Depends(verify_authenticated_user),
     db: Session = Depends(get_db)
 ):
     """
     Creates a Tripay Checkout URL for Premium Subscription
     """
+    user_id = token_payload.get("sub")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

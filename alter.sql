@@ -1,0 +1,10 @@
+ALTER TABLE biz_products ADD COLUMN IF NOT EXISTS source_platform VARCHAR(100);
+ALTER TABLE biz_products ADD COLUMN IF NOT EXISTS image_url VARCHAR(500);
+ALTER TABLE biz_products ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE biz_products ADD COLUMN IF NOT EXISTS sync_status JSONB DEFAULT '{"shopee": "pending", "tokopedia": "pending", "tiktok": "pending"}'::jsonb;
+ALTER TABLE biz_products ALTER COLUMN supplier_id DROP NOT NULL;
+ALTER TABLE chunks ALTER COLUMN embedding TYPE vector(768);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS enhancement_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_enhancement_reset_date TIMESTAMP NOT NULL DEFAULT now();
+ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_chat_reset_date TIMESTAMP NOT NULL DEFAULT now();
